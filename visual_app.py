@@ -107,69 +107,49 @@ df = pd.read_csv(CSV_FILE)
 
 if "page" not in st.session_state: st.session_state.page = "dashboard"
 
-# Logo / Header Section
 if st.session_state.page == "dashboard":
-    st.markdown("<h1 style='margin-bottom:0;'>SKD EMAIL SCHEDULE APP</h1>", unsafe_allow_html=True)
-    st.markdown("<div><span class='live-dot'></span>SYSTEM MONITORING ACTIVE</div>", unsafe_allow_html=True)
+    # 1. UPDATE THIS URL IF YOUR REPO NAME CHANGES
+    # Currently: YaredAnbesa / my-real-estate-reminders / logo.jpeg
+    logo_url = "https://raw.githubusercontent.com/YaredAnbesa/my-real-estate-reminders/main/logo.jpeg"
+    
+    st.markdown(f"""
+    <div style="display: flex; align-items: center; gap: 20px; padding: 20px 0;">
+        <div style="flex-shrink: 0;">
+            <img src="{logo_url}" width="90" 
+                 style="border-radius: 12px; border: 1px solid #334155; display: block;"
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div style="display: none; width: 90px; height: 90px; background: #1E293B; border: 1px solid #D4AF37; border-radius: 12px; align-items: center; justify-content: center;">
+                <h2 style="color:#D4AF37; margin:0; font-size: 1.2rem;">SKD</h2>
+            </div>
+        </div>
+        <div>
+            <h1 class="modern-h1" style="margin:0; padding:0; line-height:1.1;">SKD EMAIL SCHEDULE APP</h1>
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+                <div class="live-dot"></div>
+                <span style="color:#4ADE80; font-size:0.75rem; font-weight:800; letter-spacing:1px; text-transform: uppercase;">
+                    System Live & Monitoring
+                </span>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     st.divider()
 
-    # COUNTERS
+    # --- REST OF THE DASHBOARD (METRICS & CARDS) ---
     active_count = len(df[df['Status'] == 'Active'])
     sent_count = len(df[df['Status'] == 'Sent'])
     
     m1, m2, m3 = st.columns(3)
     with m1:
-        st.markdown(f"<div class='metric-box'><span class='sub-text'>ACTIVE</span><br><span class='time-display'>{active_count}</span></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='metric-box'><div class='sub-text'>ACTIVE</div><div class='time-display'>{active_count}</div></div>", unsafe_allow_html=True)
     with m2:
-        st.markdown(f"<div class='metric-box'><span class='sub-text'>TOTAL SENT</span><br><span class='time-display'>{sent_count}</span></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='metric-box'><div class='sub-text'>SENT</div><div class='time-display'>{sent_count}</div></div>", unsafe_allow_html=True)
     with m3:
-        st.markdown(f"<div class='metric-box'><span class='sub-text'>DUBAI TIME</span><br><span class='time-display'>{datetime.now(UAE_TZ).strftime('%I:%M %p')}</span></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='metric-box'><div class='sub-text'>DUBAI TIME</div><div class='time-display'>{datetime.now(UAE_TZ).strftime('%I:%M %p')}</div></div>", unsafe_allow_html=True)
 
     st.divider()
-
-    if st.button("➕ CREATE NEW EMAIL SCHEDULE", type="primary", use_container_width=True):
-        st.session_state.page = "create"
-        st.rerun()
-
-    for i, row in df[::-1].iterrows():
-        status = str(row['Status'])
-        border_color = "#D4AF37" if status == 'Active' else "#4ADE80"
-        with st.container():
-            st.markdown(f"""
-            <div class="reminder-card" style="border-left-color: {border_color};">
-                <div style="display:flex; justify-content:space-between;">
-                    <span class="gold-text">{status.upper()}</span>
-                    <span class="sub-text">Type: {row['Recurrence']}</span>
-                </div>
-                <h2 style="margin:10px 0;">{row['Task']}</h2>
-                <p>👤 <b>{row['Recipient']}</b> | 📅 <b>{row['Deadline']}</b> at <span class="gold-text">{row['Time']}</span></p>
-            </div>
-            """, unsafe_allow_html=True)
-            if st.button(f"🗑️ Remove #{i}", key=f"del_{i}", use_container_width=True):
-                df.drop(i).to_csv(CSV_FILE, index=False)
-                st.rerun()
-
-elif st.session_state.page == "create":
-    st.markdown("## 📅 Schedule New Email")
-    if st.button("← Back"):
-        st.session_state.page = "dashboard"
-        st.rerun()
-    
-    with st.form("skd_form"):
-        task = st.text_input("Property / Task Description")
-        email = st.text_input("Recipient Email")
-        c1, c2 = st.columns(2)
-        date_sel = c1.date_input("Target Date", datetime.now(UAE_TZ))
-        time_sel = c2.text_input("Target Time (e.g., 02:30 PM)", value=(datetime.now(UAE_TZ) + timedelta(minutes=15)).strftime("%I:%M %p"))
-        recur_sel = st.selectbox("Label (Reference Only)", ["One-Time", "Weekly Rent", "Monthly Rent"])
-        
-        if st.form_submit_button("ACTIVATE SCHEDULE"):
-            if task and email:
-                new_entry = pd.DataFrame([[task, email, str(date_sel), time_sel, 'Active', recur_sel, time.time()]], columns=COLUMNS)
-                pd.concat([pd.read_csv(CSV_FILE), new_entry], ignore_index=True).to_csv(CSV_FILE, index=False)
-                st.session_state.page = "dashboard"
-                st.rerun()
+    # (Rest of the loop for cards goes here...)
 
 # --- 6. RUN ENGINE & FOOTER ---
 run_automation_engine()
