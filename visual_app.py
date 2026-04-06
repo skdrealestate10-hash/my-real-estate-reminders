@@ -13,10 +13,10 @@ try:
     GMAIL_USER = st.secrets["GMAIL_USER"]
     GMAIL_PASSWORD = st.secrets["GMAIL_PASSWORD"]
 except:
-    st.error("Missing Secrets!")
+    st.error("Missing Secrets! Add GMAIL_USER and GMAIL_PASSWORD in Streamlit Cloud.")
     st.stop()
 
-# --- 2. THE HEARTBEAT (AUTO-REFRESH EVERY 60 SECONDS) ---
+# --- 2. HEARTBEAT (AUTO-REFRESH EVERY 60 SECONDS) ---
 st_autorefresh(interval=60 * 1000, key="skd_heartbeat")
 
 CSV_FILE = 'list.csv'
@@ -29,82 +29,41 @@ st.set_page_config(page_title="SKD | Email Schedule App", layout="wide", page_ic
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap');
-
-    .stApp { 
-        background-color: #0F172A; 
-        color: #FFFFFF;
-        font-family: 'Inter', sans-serif;
-    }
+    .stApp { background-color: #0F172A; color: #FFFFFF; font-family: 'Inter', sans-serif; }
     
-    /* Modern Header Container */
-    .header-container {
-        display: flex;
-        align-items: center;
-        gap: 20px;
-        padding: 20px 0;
-        margin-bottom: 10px;
-    }
-    
-    .logo-img {
-        border-radius: 8px;
-        object-fit: contain;
-    }
-
-    .modern-h1 {
-        font-size: 2.2rem;
-        font-weight: 800;
-        letter-spacing: -1px;
-        margin: 0;
+    .header-container { display: flex; align-items: center; gap: 25px; padding: 20px 0; }
+    .logo-img { border-radius: 10px; border: 1px solid #334155; }
+    .modern-h1 { 
+        font-size: 2.3rem; font-weight: 800; letter-spacing: -1px; margin: 0;
         background: linear-gradient(90deg, #FFFFFF, #D4AF37);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }
     
     .reminder-card {
-        background: #1E293B; 
-        border-radius: 16px; 
-        padding: 25px;
-        margin-bottom: 20px; 
-        border-left: 8px solid #D4AF37;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
-        transition: transform 0.2s;
+        background: #1E293B; border-radius: 16px; padding: 25px;
+        margin-bottom: 20px; border-left: 8px solid #D4AF37;
+        box-shadow: 0 10px 15px rgba(0, 0, 0, 0.3);
     }
-    
-    .reminder-card:hover {
-        transform: translateY(-5px);
-    }
-
     .metric-box {
-        background: rgba(30, 41, 59, 0.5);
-        border: 1px solid #334155;
-        border-radius: 12px;
-        padding: 20px;
-        text-align: center;
+        background: rgba(30, 41, 59, 0.6); border: 1px solid #334155;
+        border-radius: 12px; padding: 20px; text-align: center;
     }
-
-    .time-display { 
-        font-size: 2.8rem; 
-        font-weight: 800; 
-        color: #D4AF37 !important;
-        line-height: 1;
-    }
-
+    .time-display { font-size: 2.8rem; font-weight: 800; color: #D4AF37 !important; line-height: 1; }
     .gold-text { color: #D4AF37 !important; font-weight: 600; }
-    .sub-text { color: #94A3B8 !important; font-size: 0.85rem; letter-spacing: 1px; font-weight: 700; }
+    .sub-text { color: #94A3B8 !important; font-size: 0.8rem; letter-spacing: 1px; font-weight: 700; }
     
     .footer {
-        text-align: center; padding: 50px; color: #64748B !important;
-        font-size: 0.8rem; border-top: 1px solid #1E293B; margin-top: 80px;
+        text-align: center; padding: 40px; color: #64748B !important;
+        font-size: 0.85rem; border-top: 1px solid #1E293B; margin-top: 50px;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. THE ENGINE (WORKING STATE) ---
+# --- 4. THE ENGINE ---
 def run_automation_engine():
     if not os.path.exists(CSV_FILE): return
     df_logic = pd.read_csv(CSV_FILE)
     if df_logic.empty: return
-    
     now_uae = datetime.now(UAE_TZ)
     now_ts = time.time()
     today_str = now_uae.strftime('%Y-%m-%d')
@@ -118,7 +77,6 @@ def run_automation_engine():
             try:
                 sched_time_str = str(row.get('Time'))
                 current_time_str = now_uae.strftime('%I:%M %p')
-                
                 is_today = str(row.get('Deadline')) == today_str
                 is_past_day = str(row.get('Deadline')) < today_str
                 
@@ -136,7 +94,6 @@ def run_automation_engine():
                     df_logic.at[index, 'Status'] = 'Sent'
                     changed = True
             except: continue
-            
     if changed: df_logic.to_csv(CSV_FILE, index=False)
 
 # --- 5. DASHBOARD UI ---
@@ -146,18 +103,15 @@ df = pd.read_csv(CSV_FILE)
 
 if "page" not in st.session_state: st.session_state.page = "dashboard"
 
-# Modern Header with Logo
 if st.session_state.page == "dashboard":
-    logo_file = "logo.jpeg" # Ensure this exists in your GitHub root
-    
-    # Header Layout
+    # Header with Logo & Modern H1
     st.markdown(f"""
     <div class="header-container">
-        <img src="https://raw.githubusercontent.com/YaredAnbesa/SKD_Email_App/main/logo.jpeg" width="80" class="logo-img">
+        <img src="https://raw.githubusercontent.com/YaredAnbesa/my-real-estate-reminders/main/logo.jpeg" width="90" class="logo-img" onerror="this.style.display='none'">
         <div>
             <h1 class="modern-h1">SKD EMAIL SCHEDULE APP</h1>
-            <div style="color:#4ADE80; font-size:0.8rem; font-weight:bold; letter-spacing:1px;">
-                ● SYSTEM LIVE & MONITORING
+            <div style="color:#4ADE80; font-size:0.75rem; font-weight:bold; letter-spacing:1px; margin-top:5px;">
+                ● SYSTEM MONITORING ACTIVE
             </div>
         </div>
     </div>
@@ -171,8 +125,66 @@ if st.session_state.page == "dashboard":
     
     m1, m2, m3 = st.columns(3)
     with m1:
-        st.markdown(f"<div class='metric-box'><div class='sub-text'>ACTIVE TASKS</div><div class='time-display'>{active_count}</div></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='metric-box'><div class='sub-text'>ACTIVE</div><div class='time-display'>{active_count}</div></div>", unsafe_allow_html=True)
     with m2:
-        st.markdown(f"<div class='metric-box'><div class='sub-text'>EMAILS SENT</div><div class='time-display'>{sent_count}</div></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='metric-box'><div class='sub-text'>SENT</div><div class='time-display'>{sent_count}</div></div>", unsafe_allow_html=True)
     with m3:
-        st.
+        st.markdown(f"<div class='metric-box'><div class='sub-text'>DUBAI TIME</div><div class='time-display'>{datetime.now(UAE_TZ).strftime('%I:%M %p')}</div></div>", unsafe_allow_html=True)
+
+    st.divider()
+
+    if st.button("➕ CREATE NEW EMAIL SCHEDULE", type="primary", use_container_width=True):
+        st.session_state.page = "create"
+        st.rerun()
+
+    for i, row in df[::-1].iterrows():
+        status = str(row['Status'])
+        border_color = "#D4AF37" if status == 'Active' else "#4ADE80"
+        with st.container():
+            st.markdown(f"""
+            <div class="reminder-card" style="border-left-color: {border_color};">
+                <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+                    <span class="gold-text" style="font-size:0.8rem;">{status.upper()}</span>
+                    <span class="sub-text">LABEL: {row['Recurrence']}</span>
+                </div>
+                <h2 style="margin:0 0 10px 0; font-size:1.6rem; color: white !important;">{row['Task']}</h2>
+                <div style="color:#CBD5E1;">
+                    Recipient: <b>{row['Recipient']}</b><br>
+                    Schedule: <b>{row['Deadline']}</b> at <span class="gold-text">{row['Time']}</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button(f"🗑️ Delete Record #{i}", key=f"del_{i}", use_container_width=True):
+                df.drop(i).to_csv(CSV_FILE, index=False)
+                st.rerun()
+
+elif st.session_state.page == "create":
+    st.markdown("<h1 class='modern-h1'>New Schedule</h1>", unsafe_allow_html=True)
+    if st.button("← Back"):
+        st.session_state.page = "dashboard"
+        st.rerun()
+    
+    with st.form("skd_form"):
+        task = st.text_input("Property / Task Description")
+        email = st.text_input("Recipient Email")
+        c1, c2 = st.columns(2)
+        date_sel = c1.date_input("Target Date", datetime.now(UAE_TZ))
+        time_sel = c2.text_input("Target Time (e.g., 10:30 AM)", value=(datetime.now(UAE_TZ) + timedelta(minutes=15)).strftime("%I:%M %p"))
+        recur_sel = st.selectbox("Label", ["One-Time", "Weekly Rent", "Monthly Rent"])
+        
+        if st.form_submit_button("ACTIVATE SCHEDULE"):
+            if task and email:
+                new_entry = pd.DataFrame([[task, email, str(date_sel), time_sel, 'Active', recur_sel, time.time()]], columns=COLUMNS)
+                pd.concat([pd.read_csv(CSV_FILE), new_entry], ignore_index=True).to_csv(CSV_FILE, index=False)
+                st.session_state.page = "dashboard"
+                st.rerun()
+
+# --- 6. RUN ENGINE ---
+run_automation_engine()
+
+st.markdown(f"""
+    <div class="footer">
+        CREATED BY YARED ANBESA<br>
+        SKD EMAIL SCHEDULE APP © {datetime.now().year}
+    </div>
+    """, unsafe_allow_html=True)
