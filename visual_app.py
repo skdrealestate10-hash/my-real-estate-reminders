@@ -13,7 +13,7 @@ try:
     GMAIL_USER = st.secrets["GMAIL_USER"]
     GMAIL_PASSWORD = st.secrets["GMAIL_PASSWORD"]
 except:
-    st.error("Missing Secrets! Please add GMAIL_USER and GMAIL_PASSWORD in Streamlit Settings.")
+    st.error("Missing Secrets! Add GMAIL_USER and GMAIL_PASSWORD in Streamlit Cloud.")
     st.stop()
 
 # --- 2. HEARTBEAT (AUTO-REFRESH EVERY 60 SECONDS) ---
@@ -23,53 +23,50 @@ CSV_FILE = 'list.csv'
 COLUMNS = ['Task', 'Recipient', 'Deadline', 'Time', 'Status', 'Recurrence', 'AddedAt']
 UAE_TZ = pytz.timezone('Asia/Dubai')
 
-# --- 3. MODERN LUXURY STYLING ---
+# --- 3. CSV SAFETY CHECK (FIXES THE KEYERROR) ---
+def load_and_fix_csv():
+    if not os.path.exists(CSV_FILE):
+        df = pd.DataFrame(columns=COLUMNS)
+        df.to_csv(CSV_FILE, index=False)
+        return df
+    try:
+        df = pd.read_csv(CSV_FILE)
+        # Check if all required columns exist
+        if not all(col in df.columns for col in COLUMNS):
+            st.warning("Repairing CSV structure...")
+            df = pd.DataFrame(columns=COLUMNS)
+            df.to_csv(CSV_FILE, index=False)
+        return df
+    except:
+        return pd.DataFrame(columns=COLUMNS)
+
+# --- 4. MODERN LUXURY STYLING ---
 st.set_page_config(page_title="SKD | Email Schedule App", layout="wide", page_icon="📧")
 
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap');
-    
-    .stApp { 
-        background-color: #0F172A; 
-        color: #FFFFFF; 
-        font-family: 'Inter', sans-serif; 
-    }
+    .stApp { background-color: #0F172A; color: #FFFFFF; font-family: 'Inter', sans-serif; }
     
     .modern-h1 { 
-        font-size: 2.3rem; 
-        font-weight: 800; 
-        letter-spacing: -1px; 
-        margin: 0;
+        font-size: 2.3rem; font-weight: 800; letter-spacing: -1px; margin: 0;
         background: linear-gradient(90deg, #FFFFFF, #D4AF37);
-        -webkit-background-clip: text; 
-        -webkit-text-fill-color: transparent;
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }
     
     .reminder-card {
-        background: #1E293B; 
-        border-radius: 16px; 
-        padding: 25px;
-        margin-bottom: 20px; 
-        border-left: 8px solid #D4AF37;
+        background: #1E293B; border-radius: 16px; padding: 25px;
+        margin-bottom: 20px; border-left: 8px solid #D4AF37;
         box-shadow: 0 10px 15px rgba(0, 0, 0, 0.3);
     }
-
     .metric-box {
-        background: rgba(30, 41, 59, 0.6); 
-        border: 1px solid #334155;
-        border-radius: 12px; 
-        padding: 20px; 
-        text-align: center;
+        background: rgba(30, 41, 59, 0.6); border: 1px solid #334155;
+        border-radius: 12px; padding: 20px; text-align: center;
     }
-
-    .time-display { 
-        font-size: 2.8rem; 
-        font-weight: 800; 
-        color: #D4AF37 !important; 
-        line-height: 1; 
-    }
-
+    .time-display { font-size: 2.5rem; font-weight: 800; color: #D4AF37 !important; line-height: 1; }
+    .gold-text { color: #D4AF37 !important; font-weight: 600; }
+    .sub-text { color: #94A3B8 !important; font-size: 0.8rem; letter-spacing: 1px; font-weight: 700; }
+    
     .live-dot {
         height: 10px; width: 10px; background-color: #4ADE80;
         border-radius: 50%; display: inline-block; margin-right: 8px;
@@ -77,24 +74,16 @@ st.markdown("""
     }
     @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }
 
-    .gold-text { color: #D4AF37 !important; font-weight: 600; }
-    .sub-text { color: #94A3B8 !important; font-size: 0.8rem; letter-spacing: 1px; font-weight: 700; }
-    
     .footer {
         text-align: center; padding: 40px; color: #64748B !important;
         font-size: 0.85rem; border-top: 1px solid #1E293B; margin-top: 50px;
     }
-
-    /* Target white text for readability on dark cards */
-    .card-title { font-size: 1.6rem; color: #FFFFFF !important; margin: 10px 0; }
-    .card-detail { color: #CBD5E1 !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. THE RELIABLE ENGINE ---
+# --- 5. THE ENGINE ---
 def run_automation_engine():
-    if not os.path.exists(CSV_FILE): return
-    df_logic = pd.read_csv(CSV_FILE)
+    df_logic = load_and_fix_csv()
     if df_logic.empty: return
     
     now_uae = datetime.now(UAE_TZ)
@@ -104,7 +93,6 @@ def run_automation_engine():
 
     for index, row in df_logic.iterrows():
         if str(row.get('Status')) == 'Active':
-            # 120-second safety buffer
             added_at = float(row.get('AddedAt', 0))
             if (now_ts - added_at) < 120: continue 
 
@@ -130,25 +118,22 @@ def run_automation_engine():
             except: continue
     if changed: df_logic.to_csv(CSV_FILE, index=False)
 
-# --- 5. DASHBOARD UI ---
-if not os.path.exists(CSV_FILE):
-    pd.DataFrame(columns=COLUMNS).to_csv(CSV_FILE, index=False)
-df = pd.read_csv(CSV_FILE)
+# --- 6. DASHBOARD UI ---
+df = load_and_fix_csv()
 
 if "page" not in st.session_state: st.session_state.page = "dashboard"
 
 if st.session_state.page == "dashboard":
-    # --- MODERN HEADER WITH LOGO FALLBACK ---
+    # Header with Fixed Logo Path
     logo_url = "https://raw.githubusercontent.com/YaredAnbesa/my-real-estate-reminders/main/logo.jpeg"
     
     st.markdown(f"""
     <div style="display: flex; align-items: center; gap: 20px; padding: 20px 0;">
         <div style="flex-shrink: 0;">
-            <img src="{logo_url}" width="90" 
-                 style="border-radius: 12px; border: 1px solid #334155; display: block;"
+            <img src="{logo_url}" width="100" style="border-radius: 12px; border: 1px solid #334155;"
                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
             <div style="display: none; width: 90px; height: 90px; background: #1E293B; border: 1px solid #D4AF37; border-radius: 12px; align-items: center; justify-content: center;">
-                <h2 style="color:#D4AF37; margin:0; font-size: 1.2rem;">SKD</h2>
+                <h2 style="color:#D4AF37; margin:0;">SKD</h2>
             </div>
         </div>
         <div>
@@ -165,7 +150,7 @@ if st.session_state.page == "dashboard":
 
     st.divider()
 
-    # --- COUNTERS / METRICS ---
+    # COUNTERS
     active_count = len(df[df['Status'] == 'Active'])
     sent_count = len(df[df['Status'] == 'Sent'])
     
@@ -183,7 +168,7 @@ if st.session_state.page == "dashboard":
         st.session_state.page = "create"
         st.rerun()
 
-    # --- TASK QUEUE ---
+    # Display Tasks
     for i, row in df[::-1].iterrows():
         status = str(row['Status'])
         border_color = "#D4AF37" if status == 'Active' else "#4ADE80"
@@ -191,18 +176,19 @@ if st.session_state.page == "dashboard":
             st.markdown(f"""
             <div class="reminder-card" style="border-left-color: {border_color};">
                 <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
-                    <span class="gold-text" style="font-size:0.8rem; letter-spacing:1px;">{status.upper()}</span>
+                    <span class="gold-text" style="font-size:0.8rem;">{status.upper()}</span>
                     <span class="sub-text">LABEL: {row['Recurrence']}</span>
                 </div>
-                <h2 class="card-title">{row['Task']}</h2>
-                <div class="card-detail">
+                <h2 style="color:white; margin:0 0 10px 0;">{row['Task']}</h2>
+                <div style="color:#CBD5E1;">
                     Recipient: <b>{row['Recipient']}</b><br>
                     Schedule: <b>{row['Deadline']}</b> at <span class="gold-text">{row['Time']}</span>
                 </div>
             </div>
             """, unsafe_allow_html=True)
             if st.button(f"🗑️ Remove Record #{i}", key=f"del_{i}", use_container_width=True):
-                df.drop(i).to_csv(CSV_FILE, index=False)
+                df = df.drop(i)
+                df.to_csv(CSV_FILE, index=False)
                 st.rerun()
 
 elif st.session_state.page == "create":
@@ -216,22 +202,17 @@ elif st.session_state.page == "create":
         email = st.text_input("Recipient Email")
         c1, c2 = st.columns(2)
         date_sel = c1.date_input("Target Date", datetime.now(UAE_TZ))
-        time_sel = c2.text_input("Target Time (e.g., 11:00 AM)", value=(datetime.now(UAE_TZ) + timedelta(minutes=15)).strftime("%I:%M %p"))
+        time_sel = c2.text_input("Target Time (e.g., 03:30 PM)", value=(datetime.now(UAE_TZ) + timedelta(minutes=15)).strftime("%I:%M %p"))
         recur_sel = st.selectbox("Label", ["One-Time", "Weekly Rent", "Monthly Rent"])
         
         if st.form_submit_button("ACTIVATE SCHEDULE"):
             if task and email:
                 new_entry = pd.DataFrame([[task, email, str(date_sel), time_sel, 'Active', recur_sel, time.time()]], columns=COLUMNS)
-                pd.concat([pd.read_csv(CSV_FILE), new_entry], ignore_index=True).to_csv(CSV_FILE, index=False)
+                df = pd.concat([load_and_fix_csv(), new_entry], ignore_index=True)
+                df.to_csv(CSV_FILE, index=False)
                 st.session_state.page = "dashboard"
                 st.rerun()
 
-# --- 6. RUN ENGINE & FOOTER ---
+# --- 7. RUN ENGINE & FOOTER ---
 run_automation_engine()
-
-st.markdown(f"""
-    <div class="footer">
-        CREATED BY YARED ANBESA<br>
-        SKD EMAIL SCHEDULE APP © {datetime.now().year}
-    </div>
-    """, unsafe_allow_html=True)
+st.markdown(f"<div class='footer'>CREATED BY YARED ANBESA<br>SKD EMAIL SCHEDULE APP © {datetime.now().year}</div>", unsafe_allow_html=True)
