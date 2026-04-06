@@ -46,10 +46,14 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap');
     .stApp { background-color: #0F172A; color: #FFFFFF; font-family: 'Inter', sans-serif; }
     
-    .brand-header { text-align: center; padding: 20px 0; }
+    /* Logo Container with extra space */
+    .logo-container { 
+        text-align: left; 
+        padding: 30px 0 40px 0; 
+    }
     
     .modern-h1 { 
-        font-size: 2.5rem; font-weight: 800; letter-spacing: -1px; margin-top: 15px;
+        font-size: 2.5rem; font-weight: 800; letter-spacing: -1px; margin: 0;
         background: linear-gradient(90deg, #FFFFFF, #D4AF37);
         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }
@@ -123,20 +127,20 @@ df = load_and_fix_csv()
 if "page" not in st.session_state: st.session_state.page = "dashboard"
 
 if st.session_state.page == "dashboard":
-    # Centered Brand Header
+    # Logo row (Left Aligned with extra space)
     logo_url = "https://raw.githubusercontent.com/YaredAnbesa/my-real-estate-reminders/main/logo.jpeg"
     
     st.markdown(f"""
-    <div class="brand-header">
-        <img src="{logo_url}" width="120" style="border-radius: 15px; border: 1px solid #334155;"
+    <div class="logo-container">
+        <img src="{logo_url}" width="150" style="border-radius: 12px; border: 1px solid #334155;"
              onerror="this.style.display='none';">
-        <h1 class="modern-h1">SKD EMAIL SCHEDULE APP</h1>
-        <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px;">
-            <div class="live-dot"></div>
-            <span style="color:#4ADE80; font-size:0.75rem; font-weight:800; letter-spacing:1px; text-transform: uppercase;">
-                System Live & Monitoring
-            </span>
-        </div>
+    </div>
+    <h1 class="modern-h1">SKD EMAIL SCHEDULE APP</h1>
+    <div style="display: flex; align-items: center; gap: 8px; margin-top: 10px; margin-bottom: 30px;">
+        <div class="live-dot"></div>
+        <span style="color:#4ADE80; font-size:0.75rem; font-weight:800; letter-spacing:1px; text-transform: uppercase;">
+            System Live & Monitoring
+        </span>
     </div>
     """, unsafe_allow_html=True)
 
@@ -183,7 +187,7 @@ if st.session_state.page == "dashboard":
                 st.rerun()
 
 elif st.session_state.page == "create":
-    st.markdown("<h1 class='modern-h1' style='text-align:center;'>New Schedule</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 class='modern-h1'>New Schedule</h1>", unsafe_allow_html=True)
     if st.button("← Back"):
         st.session_state.page = "dashboard"
         st.rerun()
