@@ -61,17 +61,16 @@ st.set_page_config(page_title="SKD Reminder Center", layout="wide")
 st.markdown("""
     <style>
     .stApp { background-color: #F8F9FA; }
-    .header-box { text-align: left; padding: 15px; background: white; border-bottom: 3px solid #D4AF37; }
+    .header-box { text-align: left; padding: 15 (15px); background: white; border-bottom: 3px solid #D4AF37; }
     .glass-stats {
         background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
         border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 15px; padding: 15px;
         display: flex; justify-content: space-around; margin: 20px 0; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
     }
-    .stat-item { font-weight: 600; color: #1E293B; font-size: 0.9rem; }
-    .stat-value { color: #8B0000; font-size: 1.1rem; margin-left: 5px; }
     .card { background: white; padding: 20px; border-radius: 12px; border-left: 6px solid #8B0000; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 15px; }
     .tag-active { background: #FFF5F5; color: #8B0000; padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 0.7rem; border: 1px solid #8B0000; }
     .tag-sent { background: #F0FFF4; color: #22543D; padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 0.7rem; border: 1px solid #22543D; }
+    .footer { text-align: center; color: #94A3B8; font-size: 0.8rem; margin-top: 30px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -85,15 +84,14 @@ df = pd.read_csv(CSV_FILE)
 
 # --- DASHBOARD ---
 if st.session_state.page == "dashboard":
-    # Stats Calculation
     a_count = len(df[df['Status'] == 'Active'])
     s_count = len(df[df['Status'] == 'Sent'])
 
     st.markdown(f"""
     <div class="glass-stats">
-        <div class="stat-item">🟢 ACTIVE <span class="stat-value">{a_count}</span></div>
-        <div class="stat-item">📤 SENT <span class="stat-value">{s_count}</span></div>
-        <div class="stat-item">⏰ DUBAI TIME: <span class="stat-value">{datetime.now(UAE_TZ).strftime('%I:%M %p')}</span></div>
+        <div class="stat-item"><b>🟢 ACTIVE:</b> {a_count}</div>
+        <div class="stat-item"><b>📤 SENT:</b> {s_count}</div>
+        <div class="stat-item"><b>⏰ DUBAI:</b> {datetime.now(UAE_TZ).strftime('%I:%M %p')}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -103,14 +101,13 @@ if st.session_state.page == "dashboard":
         st.session_state.page = "create"
         st.rerun()
 
-    # SHOW ALL EMAILS (NOT JUST ACTIVE)
     if len(df) == 0:
         st.info("No records found.")
     else:
         for i, row in df[::-1].iterrows():
             with st.container():
                 st.markdown('<div class="card">', unsafe_allow_html=True)
-                col_tx, col_dt, col_dl = st.columns([3, 2, 0.5])
+                col_tx, col_dt, col_bt = st.columns([3, 2, 1.2])
                 with col_tx:
                     tag_style = "tag-active" if row['Status'] == 'Active' else "tag-sent"
                     st.markdown(f'<span class="{tag_style}">{row["Status"].upper()}</span> **{row["Task"]}**', unsafe_allow_html=True)
@@ -118,8 +115,14 @@ if st.session_state.page == "dashboard":
                 with col_dt:
                     st.write(f"📅 {row['Deadline']}")
                     st.caption(f"⏰ {row['Time']} | {row['Recurrence']}")
-                with col_dl:
-                    if st.button("🗑️", key=f"del_{i}"):
+                with col_bt:
+                    # BUTTONS: View/Edit and Delete
+                    edit_col, del_col = st.columns(2)
+                    if edit_col.button("📝 Edit", key=f"edit_{i}"):
+                        st.session_state.edit_index = i
+                        st.session_state.page = "edit"
+                        st.rerun()
+                    if del_col.button("🗑️", key=f"del_{i}"):
                         df.drop(i).to_csv(CSV_FILE, index=False)
                         st.rerun()
                 st.markdown('</div>', unsafe_allow_html=True)
@@ -130,6 +133,7 @@ elif st.session_state.page == "create":
         st.session_state.page = "dashboard"
         st.rerun()
     with st.form("add_new"):
+        st.write("### Schedule New Email")
         t = st.text_input("Task Name")
         e = st.text_input("Recipient Email")
         c1, c2, c3 = st.columns(3)
@@ -142,3 +146,37 @@ elif st.session_state.page == "create":
             df.to_csv(CSV_FILE, index=False)
             st.session_state.page = "dashboard"
             st.rerun()
+
+# --- EDIT PAGE ---
+elif st.session_state.page == "edit":
+    idx = st.session_state.edit_index
+    row = df.iloc[idx]
+    
+    if st.button("← Cancel"):
+        st.session_state.page = "dashboard"
+        st.rerun()
+        
+    st.write("### View / Edit Scheduled Email")
+    with st.form("edit_form"):
+        new_t = st.text_input("Task Name", value=row['Task'])
+        new_e = st.text_input("Recipient Email", value=row['Recipient'])
+        c1, c2, c3 = st.columns(3)
+        # Convert string date back to datetime object for the picker
+        current_date = datetime.strptime(row['Deadline'], '%Y-%m-%d')
+        new_d = c1.date_input("Date", value=current_date)
+        new_tm = c2.text_input("Time", value=row['Time'])
+        new_r = c3.selectbox("Repeat", ["None", "Weekly", "Monthly"], index=["None", "Weekly", "Monthly"].index(row['Recurrence']))
+        new_s = st.selectbox("Status", ["Active", "Sent"], index=["Active", "Sent"].index(row['Status']))
+        
+        if st.form_submit_button("UPDATE CHANGES"):
+            df.at[idx, 'Task'] = new_t
+            df.at[idx, 'Recipient'] = new_e
+            df.at[idx, 'Deadline'] = str(new_d)
+            df.at[idx, 'Time'] = new_tm
+            df.at[idx, 'Recurrence'] = new_r
+            df.at[idx, 'Status'] = new_s
+            df.to_csv(CSV_FILE, index=False)
+            st.session_state.page = "dashboard"
+            st.rerun()
+
+st.markdown('<div class="footer">SKD Real Estate • Managed by Yared Anbesa</div>', unsafe_allow_html=True)
