@@ -13,7 +13,7 @@ CSV_FILE = 'list.csv'
 COLUMNS = ['Task', 'Recipient', 'Deadline', 'Time', 'DaysBefore', 'Status', 'Recurrence']
 UAE_TZ = pytz.timezone('Asia/Dubai')
 
-# --- 2. SENDING ENGINE ---
+# --- 2. UPDATED SENDING ENGINE (NO IMMEDIATE SEND) ---
 def run_automation_engine():
     if not os.path.exists(CSV_FILE):
         pd.DataFrame(columns=COLUMNS).to_csv(CSV_FILE, index=False)
@@ -22,39 +22,48 @@ def run_automation_engine():
     df_bg = pd.read_csv(CSV_FILE)
     now_uae = datetime.now(UAE_TZ)
     today_str = now_uae.strftime('%Y-%m-%d')
-    current_time_obj = now_uae.time()
+    # Current time rounded to the minute for a clean comparison
+    current_time_str = now_uae.strftime('%I:%M %p')
     
     changed = False
 
     for index, row in df_bg.iterrows():
         if str(row['Status']) == 'Active':
+            # 1. Check if the date is today or in the past
             if str(row['Deadline']) <= today_str:
                 try:
-                    scheduled_time = datetime.strptime(str(row['Time']), '%I:%M %p').time()
-                    if str(row['Deadline']) < today_str or current_time_obj >= scheduled_time:
-                        recipients = [e.strip() for e in str(row['Recipient']).split(',')]
-                        msg = MIMEText(f"SKD Reminder: {row['Task']}\nDue: {row['Deadline']} at {row['Time']}")
-                        msg['Subject'] = f"🔔 SKD REMINDER: {row['Task']}"
-                        msg['From'] = GMAIL_USER
-                        msg['To'] = ", ".join(recipients)
-                        
-                        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-                            server.login(GMAIL_USER, GMAIL_PASSWORD)
-                            server.send_message(msg)
-                        
-                        deadline_dt = datetime.strptime(str(row['Deadline']), '%Y-%m-%d')
-                        if row['Recurrence'] == 'Weekly':
-                            df_bg.at[index, 'Deadline'] = (deadline_dt + timedelta(weeks=1)).strftime('%Y-%m-%d')
-                        elif row['Recurrence'] == 'Monthly':
-                            df_bg.at[index, 'Deadline'] = (deadline_dt + timedelta(days=30)).strftime('%Y-%m-%d')
-                        else:
-                            df_bg.at[index, 'Status'] = 'Sent'
-                        changed = True
-                except: continue
-    if changed: df_bg.to_csv(CSV_FILE, index=False)
-
-run_automation_engine()
-
+                    # 2. Check if the scheduled time matches the current Dubai time
+                    # This prevents immediate sending unless the clock actually hits your chosen time
+                    if str(row['Deadline']) == today_str:
+                        if str(row['Time']) != current_time_str:
+                            continue # Skip if it's today but not the right minute yet
+                    
+                    # 3. If it's a match or truly overdue from a previous day, send it
+                    recipients = [e.strip() for e in str(row['Recipient']).split(',')]
+                    msg = MIMEText(f"SKD Reminder: {row['Task']}\nDue: {row['Deadline']} at {row['Time']}")
+                    msg['Subject'] = f"🔔 SKD REMINDER: {row['Task']}"
+                    msg['From'] = GMAIL_USER
+                    msg['To'] = ", ".join(recipients)
+                    
+                    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+                        server.login(GMAIL_USER, GMAIL_PASSWORD)
+                        server.send_message(msg)
+                    
+                    # 4. Handle Recurrence or Mark as Sent
+                    deadline_dt = datetime.strptime(str(row['Deadline']), '%Y-%m-%d')
+                    if row['Recurrence'] == 'Weekly':
+                        df_bg.at[index, 'Deadline'] = (deadline_dt + timedelta(weeks=1)).strftime('%Y-%m-%d')
+                    elif row['Recurrence'] == 'Monthly':
+                        df_bg.at[index, 'Deadline'] = (deadline_dt + timedelta(days=30)).strftime('%Y-%m-%d')
+                    else:
+                        df_bg.at[index, 'Status'] = 'Sent'
+                    changed = True
+                except Exception as e:
+                    print(f"Error sending email: {e}")
+                    continue
+                    
+    if changed: 
+        df_bg.to_csv(CSV_FILE, index=False)
 # --- 3. UI SETUP ---
 st.set_page_config(page_title="SKD Reminder Center", layout="wide")
 
