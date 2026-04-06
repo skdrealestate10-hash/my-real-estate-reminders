@@ -7,8 +7,8 @@ import os
 import pytz
 
 # --- 1. CONFIGURATION ---
-GMAIL_USER = 'skdrealestate10@gmail.com'
-GMAIL_PASSWORD = 'jukv rsyr breg irzy' 
+GMAIL_USER = st.secrets["GMAIL_USER"]
+GMAIL_PASSWORD = st.secrets["GMAIL_PASSWORD"]
 CSV_FILE = 'list.csv'
 COLUMNS = ['Task', 'Recipient', 'Deadline', 'Time', 'DaysBefore', 'Status', 'Recurrence']
 UAE_TZ = pytz.timezone('Asia/Dubai')
