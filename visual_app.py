@@ -8,8 +8,8 @@ import time
 import threading
 
 # --- CONFIGURATION ---
-GMAIL_USER = 'skdrealestate10@gmail.com'
-GMAIL_PASSWORD = 'insz azou fpic xwba' 
+GMAIL_USER = st.secrets["GMAIL_USER"]
+GMAIL_PASSWORD = st.secrets["GMAIL_PASSWORD"]
 CSV_FILE = 'list.csv'
 COLUMNS = ['Task', 'Recipient', 'Deadline', 'Time', 'DaysBefore', 'Status', 'Recurrence']
 
