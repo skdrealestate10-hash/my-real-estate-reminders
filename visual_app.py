@@ -23,7 +23,7 @@ CSV_FILE = 'list.csv'
 COLUMNS = ['Task', 'Recipient', 'Deadline', 'Time', 'Status', 'Recurrence', 'AddedAt']
 UAE_TZ = pytz.timezone('Asia/Dubai')
 
-# --- 3. CSV SAFETY CHECK (FIXES THE KEYERROR) ---
+# --- 3. CSV SAFETY CHECK ---
 def load_and_fix_csv():
     if not os.path.exists(CSV_FILE):
         df = pd.DataFrame(columns=COLUMNS)
@@ -31,9 +31,7 @@ def load_and_fix_csv():
         return df
     try:
         df = pd.read_csv(CSV_FILE)
-        # Check if all required columns exist
         if not all(col in df.columns for col in COLUMNS):
-            st.warning("Repairing CSV structure...")
             df = pd.DataFrame(columns=COLUMNS)
             df.to_csv(CSV_FILE, index=False)
         return df
@@ -48,8 +46,10 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap');
     .stApp { background-color: #0F172A; color: #FFFFFF; font-family: 'Inter', sans-serif; }
     
+    .brand-header { text-align: center; padding: 20px 0; }
+    
     .modern-h1 { 
-        font-size: 2.3rem; font-weight: 800; letter-spacing: -1px; margin: 0;
+        font-size: 2.5rem; font-weight: 800; letter-spacing: -1px; margin-top: 15px;
         background: linear-gradient(90deg, #FFFFFF, #D4AF37);
         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }
@@ -85,7 +85,6 @@ st.markdown("""
 def run_automation_engine():
     df_logic = load_and_fix_csv()
     if df_logic.empty: return
-    
     now_uae = datetime.now(UAE_TZ)
     now_ts = time.time()
     today_str = now_uae.strftime('%Y-%m-%d')
@@ -124,26 +123,19 @@ df = load_and_fix_csv()
 if "page" not in st.session_state: st.session_state.page = "dashboard"
 
 if st.session_state.page == "dashboard":
-    # Header with Fixed Logo Path
+    # Centered Brand Header
     logo_url = "https://raw.githubusercontent.com/YaredAnbesa/my-real-estate-reminders/main/logo.jpeg"
     
     st.markdown(f"""
-    <div style="display: flex; align-items: center; gap: 20px; padding: 20px 0;">
-        <div style="flex-shrink: 0;">
-            <img src="{logo_url}" width="100" style="border-radius: 12px; border: 1px solid #334155;"
-                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-            <div style="display: none; width: 90px; height: 90px; background: #1E293B; border: 1px solid #D4AF37; border-radius: 12px; align-items: center; justify-content: center;">
-                <h2 style="color:#D4AF37; margin:0;">SKD</h2>
-            </div>
-        </div>
-        <div>
-            <h1 class="modern-h1">SKD EMAIL SCHEDULE APP</h1>
-            <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
-                <div class="live-dot"></div>
-                <span style="color:#4ADE80; font-size:0.75rem; font-weight:800; letter-spacing:1px; text-transform: uppercase;">
-                    System Live & Monitoring
-                </span>
-            </div>
+    <div class="brand-header">
+        <img src="{logo_url}" width="120" style="border-radius: 15px; border: 1px solid #334155;"
+             onerror="this.style.display='none';">
+        <h1 class="modern-h1">SKD EMAIL SCHEDULE APP</h1>
+        <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px;">
+            <div class="live-dot"></div>
+            <span style="color:#4ADE80; font-size:0.75rem; font-weight:800; letter-spacing:1px; text-transform: uppercase;">
+                System Live & Monitoring
+            </span>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -168,7 +160,6 @@ if st.session_state.page == "dashboard":
         st.session_state.page = "create"
         st.rerun()
 
-    # Display Tasks
     for i, row in df[::-1].iterrows():
         status = str(row['Status'])
         border_color = "#D4AF37" if status == 'Active' else "#4ADE80"
@@ -192,8 +183,8 @@ if st.session_state.page == "dashboard":
                 st.rerun()
 
 elif st.session_state.page == "create":
-    st.markdown("<h1 class='modern-h1'>New Schedule</h1>", unsafe_allow_html=True)
-    if st.button("← Back to Dashboard"):
+    st.markdown("<h1 class='modern-h1' style='text-align:center;'>New Schedule</h1>", unsafe_allow_html=True)
+    if st.button("← Back"):
         st.session_state.page = "dashboard"
         st.rerun()
     
@@ -202,7 +193,7 @@ elif st.session_state.page == "create":
         email = st.text_input("Recipient Email")
         c1, c2 = st.columns(2)
         date_sel = c1.date_input("Target Date", datetime.now(UAE_TZ))
-        time_sel = c2.text_input("Target Time (e.g., 03:30 PM)", value=(datetime.now(UAE_TZ) + timedelta(minutes=15)).strftime("%I:%M %p"))
+        time_sel = c2.text_input("Target Time (e.g., 03:00 PM)", value=(datetime.now(UAE_TZ) + timedelta(minutes=15)).strftime("%I:%M %p"))
         recur_sel = st.selectbox("Label", ["One-Time", "Weekly Rent", "Monthly Rent"])
         
         if st.form_submit_button("ACTIVATE SCHEDULE"):
