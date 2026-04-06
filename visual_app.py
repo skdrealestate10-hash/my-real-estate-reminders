@@ -55,7 +55,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. THE ENGINE (UNCHANGED CORE LOGIC + RECURRENCE) ---
+# --- 4. THE ENGINE (RESTORED TO WORKING STATE) ---
 def run_automation_engine():
     if not os.path.exists(CSV_FILE): return
     df_logic = pd.read_csv(CSV_FILE)
@@ -68,15 +68,20 @@ def run_automation_engine():
 
     for index, row in df_logic.iterrows():
         if str(row.get('Status')) == 'Active':
+            # 120-second safety buffer
             added_at = float(row.get('AddedAt', 0))
             if (now_ts - added_at) < 120: continue 
 
             try:
-                sched_time = datetime.strptime(str(row.get('Time')), '%I:%M %p').time()
+                # Basic string comparison for safety
+                sched_time_str = str(row.get('Time'))
+                current_time_str = now_uae.strftime('%I:%M %p')
+                
                 is_today = str(row.get('Deadline')) == today_str
                 is_past_day = str(row.get('Deadline')) < today_str
                 
-                if is_past_day or (is_today and now_uae.time() >= sched_time):
+                # Check if time has arrived or passed
+                if is_past_day or (is_today and sched_time_str <= current_time_str):
                     # SEND EMAIL
                     recipients = [addr.strip() for addr in str(row['Recipient']).split(',')]
                     msg = MIMEText(f"SKD Reminder: {row['Task']}\nDue: {row['Deadline']} at {row['Time']}")
@@ -88,23 +93,11 @@ def run_automation_engine():
                         server.login(GMAIL_USER, GMAIL_PASSWORD)
                         server.send_message(msg)
                     
-                    # RECURRENCE LOGIC
-                    repeat_type = str(row.get('Recurrence'))
-                    if repeat_type != "None":
-                        current_deadline = datetime.strptime(str(row['Deadline']), '%Y-%m-%d')
-                        if repeat_type == "Weekly":
-                            new_deadline = current_deadline + timedelta(days=7)
-                        elif repeat_type == "Monthly":
-                            # Simple 30-day add for Monthly rent
-                            new_deadline = current_deadline + timedelta(days=30)
-                        
-                        df_logic.at[index, 'Deadline'] = new_deadline.strftime('%Y-%m-%d')
-                        # Stay 'Active' for next cycle
-                    else:
-                        df_logic.at[index, 'Status'] = 'Sent'
-                    
+                    # Mark as Sent (Simple Logic)
+                    df_logic.at[index, 'Status'] = 'Sent'
                     changed = True
             except: continue
+            
     if changed: df_logic.to_csv(CSV_FILE, index=False)
 
 # --- 5. DASHBOARD UI ---
@@ -114,18 +107,10 @@ df = pd.read_csv(CSV_FILE)
 
 if "page" not in st.session_state: st.session_state.page = "dashboard"
 
-# LOGO LOAD (Safe Check)
-logo_path = "logo.jpeg" # Matches your GitHub file name
+# Logo / Header Section
 if st.session_state.page == "dashboard":
-    col_logo, col_title = st.columns([1, 4])
-    with col_logo:
-        if os.path.exists(logo_path):
-            st.image(logo_path, width=120)
-        else:
-            st.markdown("<h2 style='color:#D4AF37;'>SKD</h2>", unsafe_allow_html=True)
-    with col_title:
-        st.markdown("<h1 style='margin-bottom:0;'>SKD EMAIL SCHEDULE APP</h1>", unsafe_allow_html=True)
-        st.markdown("<div><span class='live-dot'></span>SYSTEM MONITORING ACTIVE</div>", unsafe_allow_html=True)
+    st.markdown("<h1 style='margin-bottom:0;'>SKD EMAIL SCHEDULE APP</h1>", unsafe_allow_html=True)
+    st.markdown("<div><span class='live-dot'></span>SYSTEM MONITORING ACTIVE</div>", unsafe_allow_html=True)
 
     st.divider()
 
@@ -155,7 +140,7 @@ if st.session_state.page == "dashboard":
             <div class="reminder-card" style="border-left-color: {border_color};">
                 <div style="display:flex; justify-content:space-between;">
                     <span class="gold-text">{status.upper()}</span>
-                    <span class="sub-text">Repeat: {row['Recurrence']}</span>
+                    <span class="sub-text">Type: {row['Recurrence']}</span>
                 </div>
                 <h2 style="margin:10px 0;">{row['Task']}</h2>
                 <p>👤 <b>{row['Recipient']}</b> | 📅 <b>{row['Deadline']}</b> at <span class="gold-text">{row['Time']}</span></p>
@@ -177,7 +162,7 @@ elif st.session_state.page == "create":
         c1, c2 = st.columns(2)
         date_sel = c1.date_input("Target Date", datetime.now(UAE_TZ))
         time_sel = c2.text_input("Target Time (e.g., 02:30 PM)", value=(datetime.now(UAE_TZ) + timedelta(minutes=15)).strftime("%I:%M %p"))
-        recur_sel = st.selectbox("Repeat Schedule", ["None", "Weekly", "Monthly"])
+        recur_sel = st.selectbox("Label (Reference Only)", ["One-Time", "Weekly Rent", "Monthly Rent"])
         
         if st.form_submit_button("ACTIVATE SCHEDULE"):
             if task and email:
