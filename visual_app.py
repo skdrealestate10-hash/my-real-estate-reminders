@@ -142,3 +142,5 @@ elif st.session_state.page == "create":
             df.to_csv(CSV_FILE, index=False)
             st.session_state.page = "dashboard"
             st.rerun()
+            # --- FOOTER ---
+st.markdown('<div class="footer">Created by Yared anbesa</div>', unsafe_allow_html=True)
