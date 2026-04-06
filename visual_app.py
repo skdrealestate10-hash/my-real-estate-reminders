@@ -8,7 +8,7 @@ import pytz
 
 # --- CONFIG ---
 GMAIL_USER = "skdrealestate10@gmail.com"
-GMAIL_PASSWORD = "YOUR_APP_PASSWORD_HERE"  # Replace with new App Password
+GMAIL_PASSWORD = "jukv rsyr breg irzy""  # Replace with new App Password
 CSV_FILE = "list.csv"
 UAE_TZ = pytz.timezone("Asia/Dubai")
 
