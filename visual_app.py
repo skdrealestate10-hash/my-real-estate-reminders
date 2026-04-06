@@ -46,7 +46,7 @@ st.markdown("""
     .stApp { background-color: #0F172A; color: #FFFFFF; font-family: 'Inter', sans-serif; }
     
     .modern-h1 { 
-        font-size: 2.8rem; font-weight: 800; letter-spacing: -1px; margin-bottom: 10px;
+        font-size: 2.8rem; font-weight: 800; letter-spacing: -1px; margin: 0;
         background: linear-gradient(90deg, #FFFFFF, #D4AF37);
         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }
@@ -120,18 +120,22 @@ if "page" not in st.session_state: st.session_state.page = "dashboard"
 
 if st.session_state.page == "dashboard":
     # --- BRAND HEADER ---
-    logo_url = "https://raw.githubusercontent.com/YaredAnbesa/my-real-estate-reminders/main/logo.jpeg"
+    # Attempting to load locally first (most reliable)
+    local_logo = "logo.jpeg"
+    remote_logo = "https://raw.githubusercontent.com/YaredAnbesa/my-real-estate-reminders/main/logo.jpeg"
     
-    # Left column for the logo, wider space for the title
-    c_logo, c_title = st.columns([1, 3])
-    with c_logo:
-        st.image(logo_url, use_container_width=True)
+    logo_to_use = local_logo if os.path.exists(local_logo) else remote_logo
+
+    # Placing logo in a wide column to maintain rectangular shape
+    col_l, col_r = st.columns([1.5, 2.5])
+    with col_l:
+        st.image(logo_to_use, width=350)
     
     st.markdown("<h1 class='modern-h1'>SKD EMAIL SCHEDULE APP</h1>", unsafe_allow_html=True)
     st.markdown("""
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 25px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 25px; margin-top: 10px;">
             <div class="live-dot"></div>
-            <span style="color:#4ADE80; font-size:0.75rem; font-weight:800; text-transform: uppercase;">System Monitoring Active</span>
+            <span style="color:#4ADE80; font-size:0.75rem; font-weight:800; text-transform: uppercase;">System Online</span>
         </div>
     """, unsafe_allow_html=True)
 
