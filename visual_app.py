@@ -62,16 +62,33 @@ st.markdown("""
     <style>
     .stApp { background-color: #F8F9FA; }
     .header-box { text-align: left; padding: 15px; background: white; border-bottom: 3px solid #D4AF37; }
+    
+    /* Glassmorphism Stats Bar */
     .glass-stats {
         background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
         border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 15px; padding: 15px;
         display: flex; justify-content: space-around; margin: 20px 0; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
     }
+    
     .stat-item { font-weight: 600; color: #1E293B; font-size: 0.9rem; }
     .stat-value { color: #8B0000; font-size: 1.1rem; margin-left: 5px; }
+    
     .card { background: white; padding: 20px; border-radius: 12px; border-left: 6px solid #8B0000; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 15px; }
+    
     .tag-active { background: #FFF5F5; color: #8B0000; padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 0.7rem; border: 1px solid #8B0000; }
     .tag-sent { background: #F0FFF4; color: #22543D; padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 0.7rem; border: 1px solid #22543D; }
+    
+    /* Professional Footer */
+    .footer-container {
+        text-align: center;
+        padding: 30px 0;
+        margin-top: 50px;
+        border-top: 1px solid #E2E8F0;
+        color: #64748B;
+        font-family: 'Inter', sans-serif;
+    }
+    .footer-main { font-weight: 700; color: #1E293B; letter-spacing: 1px; text-transform: uppercase; font-size: 0.85rem; }
+    .footer-sub { font-size: 0.75rem; margin-top: 5px; opacity: 0.8; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -91,22 +108,22 @@ if st.session_state.page == "dashboard":
 
     st.markdown(f"""
     <div class="glass-stats">
-        <div class="stat-item">🟢 ACTIVE <span class="stat-value">{a_count}</span></div>
-        <div class="stat-item">📤 SENT <span class="stat-value">{s_count}</span></div>
+        <div class="stat-item">🟢 ACTIVE REMINDERS <span class="stat-value">{a_count}</span></div>
+        <div class="stat-item">📤 TOTAL EMAILS SENT <span class="stat-value">{s_count}</span></div>
         <div class="stat-item">⏰ DUBAI TIME: <span class="stat-value">{datetime.now(UAE_TZ).strftime('%I:%M %p')}</span></div>
     </div>
     """, unsafe_allow_html=True)
 
     c1, c2 = st.columns([3, 1])
-    c1.subheader("Scheduled Communications")
+    c1.subheader("All Communications History")
     if c2.button("➕ New Email", type="primary", use_container_width=True):
         st.session_state.page = "create"
         st.rerun()
 
-    # SHOW ALL EMAILS (NOT JUST ACTIVE)
     if len(df) == 0:
         st.info("No records found.")
     else:
+        # Displaying all rows in reverse order (newest first)
         for i, row in df[::-1].iterrows():
             with st.container():
                 st.markdown('<div class="card">', unsafe_allow_html=True)
@@ -130,17 +147,25 @@ elif st.session_state.page == "create":
         st.session_state.page = "dashboard"
         st.rerun()
     with st.form("add_new"):
+        st.write("### Schedule New Email")
         t = st.text_input("Task Name")
         e = st.text_input("Recipient Email")
         c1, c2, c3 = st.columns(3)
         d = c1.date_input("Date", datetime.now(UAE_TZ))
-        tm = st.text_input("Time (02:30 PM)", value=datetime.now(UAE_TZ).strftime("%I:%M %p"))
+        tm = st.text_input("Time (e.g. 02:30 PM)", value=datetime.now(UAE_TZ).strftime("%I:%M %p"))
         r = c3.selectbox("Repeat", ["None", "Weekly", "Monthly"])
         if st.form_submit_button("SAVE"):
-            new_row = pd.DataFrame([[t, e, str(d), tm, 0, 'Active', r]], columns=COLUMNS)
-            df = pd.concat([df, new_row], ignore_index=True)
-            df.to_csv(CSV_FILE, index=False)
-            st.session_state.page = "dashboard"
-            st.rerun()
-            # --- FOOTER ---
-st.markdown('<div class="footer">Created by Yared anbesa</div>', unsafe_allow_html=True)
+            if t and e:
+                new_row = pd.DataFrame([[t, e, str(d), tm, 0, 'Active', r]], columns=COLUMNS)
+                df = pd.concat([df, new_row], ignore_index=True)
+                df.to_csv(CSV_FILE, index=False)
+                st.session_state.page = "dashboard"
+                st.rerun()
+
+# --- PROFESSIONAL FOOTER ---
+st.markdown("""
+    <div class="footer-container">
+        <div class="footer-main">SKD Real Estate Reminder Control Center</div>
+        <div class="footer-sub">Created by Yared</div>
+    </div>
+    """, unsafe_allow_html=True)
