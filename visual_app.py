@@ -23,7 +23,7 @@ CSV_FILE = 'list.csv'
 COLUMNS = ['Task', 'Recipient', 'Deadline', 'Time', 'Status', 'Recurrence', 'AddedAt']
 UAE_TZ = pytz.timezone('Asia/Dubai')
 
-# --- 3. FORCE-REPAIR ENGINE ---
+# --- 3. CSV REPAIR ---
 def load_and_fix_csv():
     if not os.path.exists(CSV_FILE):
         df = pd.DataFrame(columns=COLUMNS)
@@ -39,7 +39,7 @@ def load_and_fix_csv():
     except:
         return pd.DataFrame(columns=COLUMNS)
 
-# --- 4. MODERN LUXURY STYLING ---
+# --- 4. LUXURY STYLING ---
 st.set_page_config(page_title="SKD | Email Schedule App", layout="wide", page_icon="📧")
 
 st.markdown("""
@@ -47,21 +47,8 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap');
     .stApp { background-color: #0F172A; color: #FFFFFF; font-family: 'Inter', sans-serif; }
     
-    /* RECTANGULAR LOGO AREA */
-    .logo-box { 
-        padding: 40px 0 20px 0; 
-        text-align: left; 
-    }
-    .rect-logo {
-        max-width: 350px; 
-        height: auto; 
-        border-radius: 8px;
-        display: block;
-        margin-bottom: 20px;
-    }
-    
     .modern-h1 { 
-        font-size: 2.6rem; font-weight: 800; letter-spacing: -1px; margin: 0;
+        font-size: 2.8rem; font-weight: 800; letter-spacing: -1px; margin: 0;
         background: linear-gradient(90deg, #FFFFFF, #D4AF37);
         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }
@@ -93,7 +80,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 5. THE ENGINE ---
+# --- 5. AUTOMATION ENGINE ---
 def run_automation_engine():
     df_logic = load_and_fix_csv()
     if df_logic.empty: return
@@ -134,18 +121,23 @@ df = load_and_fix_csv()
 if "page" not in st.session_state: st.session_state.page = "dashboard"
 
 if st.session_state.page == "dashboard":
-    # Rectangular Logo on its own line
+    # --- FIXED LOGO PLACEMENT ---
     logo_url = "https://raw.githubusercontent.com/YaredAnbesa/my-real-estate-reminders/main/logo.jpeg"
     
-    st.markdown(f"""
-    <div class="logo-box">
-        <img src="{logo_url}" class="rect-logo" onerror="this.style.display='none';">
-    </div>
-    <h1 class="modern-h1">SKD EMAIL SCHEDULE APP</h1>
-    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 30px; margin-top: 10px;">
-        <div class="live-dot"></div>
-        <span style="color:#4ADE80; font-size:0.75rem; font-weight:800; text-transform: uppercase;">System Online</span>
-    </div>
+    # We use Streamlit's native image function for better reliability
+    col_logo, col_empty = st.columns([1, 2])
+    with col_logo:
+        try:
+            st.image(logo_url, width=300)
+        except:
+            st.markdown("<h2 style='color:#D4AF37;'>SKD REAL ESTATE</h2>", unsafe_allow_html=True)
+    
+    st.markdown("<h1 class='modern-h1'>SKD EMAIL SCHEDULE APP</h1>", unsafe_allow_html=True)
+    st.markdown("""
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 20px;">
+            <div class="live-dot"></div>
+            <span style="color:#4ADE80; font-size:0.75rem; font-weight:800; text-transform: uppercase;">System Online</span>
+        </div>
     """, unsafe_allow_html=True)
 
     st.divider()
