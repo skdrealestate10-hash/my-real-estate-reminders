@@ -9,7 +9,7 @@ import threading
 
 # --- CONFIGURATION ---
 GMAIL_USER = 'skdrealestate10@gmail.com'
-GMAIL_PASSWORD = 'insz azou fpic xwba' 
+GMAIL_PASSWORD = 'jukv rsyr breg irzy' 
 CSV_FILE = 'list.csv'
 COLUMNS = ['Task', 'Recipient', 'Deadline', 'Time', 'DaysBefore', 'Status', 'Recurrence']
 
