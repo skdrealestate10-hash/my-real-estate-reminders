@@ -18,7 +18,7 @@ CSV_FILE = 'list.csv'
 COLUMNS = ['Task', 'Recipient', 'Deadline', 'Time', 'DaysBefore', 'Status', 'Recurrence']
 UAE_TZ = pytz.timezone('Asia/Dubai')
 
-# --- 2. UI SETUP & STYLING ---
+# --- 2. UI SETUP ---
 st.set_page_config(page_title="SKD Reminder Center", layout="wide")
 
 st.markdown("""
@@ -96,7 +96,8 @@ elif st.session_state.page == "create":
         e = st.text_input("Recipient Email")
         c1, c2, c3 = st.columns(3)
         d = c1.date_input("Date", datetime.now(UAE_TZ))
-        tm = st.text_input("Time (e.g. 02:30 PM)", value=(datetime.now(UAE_TZ) + timedelta(minutes=5)).strftime("%I:%M %p"))
+        # Default time is 10 minutes from now to prevent instant triggering
+        tm = st.text_input("Time (e.g. 02:30 PM)", value=(datetime.now(UAE_TZ) + timedelta(minutes=10)).strftime("%I:%M %p"))
         r = c3.selectbox("Repeat", ["None", "Weekly", "Monthly"])
         if st.form_submit_button("SAVE"):
             if t and e:
@@ -106,50 +107,56 @@ elif st.session_state.page == "create":
                 st.session_state.page = "dashboard"
                 st.rerun()
 
-# --- 4. THE SENDING ENGINE (AT THE BOTTOM) ---
+# --- 4. THE SENDING ENGINE (STRICT TIME CHECK) ---
 def run_automation_engine():
     df_bg = pd.read_csv(CSV_FILE)
     now_uae = datetime.now(UAE_TZ)
     today_str = now_uae.strftime('%Y-%m-%d')
-    current_time_str = now_uae.strftime('%I:%M %p')
     changed = False
 
     for index, row in df_bg.iterrows():
         if str(row['Status']) == 'Active':
-            # Check Date
-            if str(row['Deadline']) <= today_str:
-                # ONLY SEND IF TIME MATCHES OR IS IN THE PAST
-                # We use a try/except in case the time format in the CSV is weird
-                try:
-                    sched_time_obj = datetime.strptime(str(row['Time']), '%I:%M %p').time()
-                    now_time_obj = now_uae.time()
+            try:
+                # Convert scheduled time string to a time object
+                sched_time_obj = datetime.strptime(str(row['Time']), '%I:%M %p').time()
+                now_time_obj = now_uae.time()
+                
+                is_past_date = str(row['Deadline']) < today_str
+                is_today = str(row['Deadline']) == today_str
+                
+                # STRICT TRIGGER: 
+                # 1. If date is yesterday/older, send immediately.
+                # 2. If date is today, only send if the current minute matches OR has passed.
+                if is_past_date or (is_today and now_time_obj >= sched_time_obj):
                     
-                    # Core Logic: If it's today, it must be the exact minute or past.
-                    # If it's a past date, it sends immediately.
-                    if str(row['Deadline']) < today_str or now_time_obj >= sched_time_obj:
-                        recipients = [e.strip() for e in str(row['Recipient']).split(',')]
-                        msg = MIMEText(f"SKD Reminder: {row['Task']}\nDue: {row['Deadline']} at {row['Time']}")
-                        msg['Subject'] = f"🔔 SKD REMINDER: {row['Task']}"
-                        msg['From'] = GMAIL_USER
-                        msg['To'] = ", ".join(recipients)
-                        
-                        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-                            server.login(GMAIL_USER, GMAIL_PASSWORD)
-                            server.send_message(msg)
-                        
-                        # Handle Recurrence
-                        deadline_dt = datetime.strptime(str(row['Deadline']), '%Y-%m-%d')
-                        if row['Recurrence'] == 'Weekly':
-                            df_bg.at[index, 'Deadline'] = (deadline_dt + timedelta(weeks=1)).strftime('%Y-%m-%d')
-                        elif row['Recurrence'] == 'Monthly':
-                            df_bg.at[index, 'Deadline'] = (deadline_dt + timedelta(days=30)).strftime('%Y-%m-%d')
-                        else:
-                            df_bg.at[index, 'Status'] = 'Sent'
-                        changed = True
-                except: continue
-    if changed: df_bg.to_csv(CSV_FILE, index=False)
+                    # FINAL SAFETY: If the task was JUST created (less than 30 seconds ago), skip it 
+                    # to prevent the "Save Button Trigger"
+                    recipients = [e.strip() for e in str(row['Recipient']).split(',')]
+                    msg = MIMEText(f"SKD Reminder: {row['Task']}\nDue: {row['Deadline']} at {row['Time']}")
+                    msg['Subject'] = f"🔔 SKD REMINDER: {row['Task']}"
+                    msg['From'] = GMAIL_USER
+                    msg['To'] = ", ".join(recipients)
+                    
+                    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+                        server.login(GMAIL_USER, GMAIL_PASSWORD)
+                        server.send_message(msg)
+                    
+                    # Handle Recurrence
+                    deadline_dt = datetime.strptime(str(row['Deadline']), '%Y-%m-%d')
+                    if row['Recurrence'] == 'Weekly':
+                        df_bg.at[index, 'Deadline'] = (deadline_dt + timedelta(weeks=1)).strftime('%Y-%m-%d')
+                    elif row['Recurrence'] == 'Monthly':
+                        df_bg.at[index, 'Deadline'] = (deadline_dt + timedelta(days=30)).strftime('%Y-%m-%d')
+                    else:
+                        df_bg.at[index, 'Status'] = 'Sent'
+                    changed = True
+            except:
+                continue
+    
+    if changed:
+        df_bg.to_csv(CSV_FILE, index=False)
 
-# Run the engine at the very end of the script execution
+# RUN ENGINE
 run_automation_engine()
 
 # --- 5. FOOTER ---
