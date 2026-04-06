@@ -23,9 +23,9 @@ CSV_FILE = 'list.csv'
 COLUMNS = ['Task', 'Recipient', 'Deadline', 'Time', 'Status', 'Recurrence', 'AddedAt']
 UAE_TZ = pytz.timezone('Asia/Dubai')
 
-# --- 3. CSV REPAIR ENGINE (FORCES FIX FOR KEYERROR) ---
+# --- 3. FORCE-REPAIR ENGINE (FIXES THE KEYERROR) ---
 def load_and_fix_csv():
-    # If file doesn't exist, create it
+    # Create file if it doesn't exist
     if not os.path.exists(CSV_FILE):
         df = pd.DataFrame(columns=COLUMNS)
         df.to_csv(CSV_FILE, index=False)
@@ -33,13 +33,15 @@ def load_and_fix_csv():
     
     try:
         df = pd.read_csv(CSV_FILE)
-        # If 'Deadline' is missing, the file is corrupted. Delete and reset.
+        # FORCE RESET: If 'Deadline' is missing, the old file is blocking the app.
         if 'Deadline' not in df.columns:
+            st.warning("Old data format detected. Resetting system...")
             os.remove(CSV_FILE)
             df = pd.DataFrame(columns=COLUMNS)
             df.to_csv(CSV_FILE, index=False)
         return df
-    except:
+    except Exception:
+        # If the file is unreadable, start fresh
         df = pd.DataFrame(columns=COLUMNS)
         df.to_csv(CSV_FILE, index=False)
         return df
@@ -52,7 +54,7 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap');
     .stApp { background-color: #0F172A; color: #FFFFFF; font-family: 'Inter', sans-serif; }
     
-    .logo-container { padding: 40px 0 20px 0; }
+    .logo-row { padding: 30px 0 10px 0; text-align: left; }
     
     .modern-h1 { 
         font-size: 2.6rem; font-weight: 800; letter-spacing: -1px; margin: 10px 0;
@@ -87,7 +89,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 5. THE ENGINE ---
+# --- 5. THE AUTOMATION ENGINE ---
 def run_automation_engine():
     df_logic = load_and_fix_csv()
     if df_logic.empty: return
@@ -128,12 +130,12 @@ df = load_and_fix_csv()
 if "page" not in st.session_state: st.session_state.page = "dashboard"
 
 if st.session_state.page == "dashboard":
-    # Dedicated Logo Row
+    # Logo Row (Spaced and Side-Aligned)
     logo_url = "https://raw.githubusercontent.com/YaredAnbesa/my-real-estate-reminders/main/logo.jpeg"
     
     st.markdown(f"""
-    <div class="logo-container">
-        <img src="{logo_url}" width="180" style="border-radius: 10px;" 
+    <div class="logo-row">
+        <img src="{logo_url}" width="180" style="border-radius: 12px; border: 1px solid #334155;" 
              onerror="this.style.display='none';">
     </div>
     <h1 class="modern-h1">SKD EMAIL SCHEDULE APP</h1>
@@ -160,6 +162,7 @@ if st.session_state.page == "dashboard":
         st.session_state.page = "create"
         st.rerun()
 
+    # DISPLAY TASK CARDS
     for i, row in df[::-1].iterrows():
         status = str(row['Status'])
         border_color = "#D4AF37" if status == 'Active' else "#4ADE80"
@@ -174,13 +177,13 @@ if st.session_state.page == "dashboard":
                 <p style="color:#CBD5E1; margin:10px 0;">To: {row['Recipient']}<br>Due: {row['Deadline']} @ {row['Time']}</p>
             </div>
             """, unsafe_allow_html=True)
-            if st.button(f"🗑️ Delete #{i}", key=f"del_{i}", use_container_width=True):
+            if st.button(f"🗑️ Delete Schedule #{i}", key=f"del_{i}", use_container_width=True):
                 df.drop(i).to_csv(CSV_FILE, index=False)
                 st.rerun()
 
 elif st.session_state.page == "create":
     st.markdown("<h1 class='modern-h1'>New Schedule</h1>", unsafe_allow_html=True)
-    if st.button("← Back"):
+    if st.button("← Back to Dashboard"):
         st.session_state.page = "dashboard"
         st.rerun()
     
@@ -199,5 +202,6 @@ elif st.session_state.page == "create":
                 st.session_state.page = "dashboard"
                 st.rerun()
 
+# --- 7. FINAL RUN ---
 run_automation_engine()
 st.markdown(f"<div class='footer'>CREATED BY YARED ANBESA<br>SKD APP © {datetime.now().year}</div>", unsafe_allow_html=True)
