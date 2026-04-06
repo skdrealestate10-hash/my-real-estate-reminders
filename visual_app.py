@@ -13,7 +13,7 @@ try:
     GMAIL_USER = st.secrets["GMAIL_USER"]
     GMAIL_PASSWORD = st.secrets["GMAIL_PASSWORD"]
 except:
-    st.error("Missing Secrets! Add GMAIL_USER and GMAIL_PASSWORD in Streamlit Cloud.")
+    st.error("Missing Secrets!")
     st.stop()
 
 # --- 2. HEARTBEAT ---
@@ -26,9 +26,7 @@ UAE_TZ = pytz.timezone('Asia/Dubai')
 # --- 3. CSV REPAIR ---
 def load_and_fix_csv():
     if not os.path.exists(CSV_FILE):
-        df = pd.DataFrame(columns=COLUMNS)
-        df.to_csv(CSV_FILE, index=False)
-        return df
+        pd.DataFrame(columns=COLUMNS).to_csv(CSV_FILE, index=False)
     try:
         df = pd.read_csv(CSV_FILE)
         if 'Deadline' not in df.columns:
@@ -48,7 +46,7 @@ st.markdown("""
     .stApp { background-color: #0F172A; color: #FFFFFF; font-family: 'Inter', sans-serif; }
     
     .modern-h1 { 
-        font-size: 2.8rem; font-weight: 800; letter-spacing: -1px; margin: 0;
+        font-size: 2.8rem; font-weight: 800; letter-spacing: -1px; margin-bottom: 10px;
         background: linear-gradient(90deg, #FFFFFF, #D4AF37);
         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }
@@ -80,7 +78,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 5. AUTOMATION ENGINE ---
+# --- 5. ENGINE ---
 def run_automation_engine():
     df_logic = load_and_fix_csv()
     if df_logic.empty: return
@@ -121,22 +119,19 @@ df = load_and_fix_csv()
 if "page" not in st.session_state: st.session_state.page = "dashboard"
 
 if st.session_state.page == "dashboard":
-    # --- FIXED LOGO PLACEMENT ---
+    # --- BRAND HEADER ---
     logo_url = "https://raw.githubusercontent.com/YaredAnbesa/my-real-estate-reminders/main/logo.jpeg"
     
-    # We use Streamlit's native image function for better reliability
-    col_logo, col_empty = st.columns([1, 2])
-    with col_logo:
-        try:
-            st.image(logo_url, width=300)
-        except:
-            st.markdown("<h2 style='color:#D4AF37;'>SKD REAL ESTATE</h2>", unsafe_allow_html=True)
+    # Left column for the logo, wider space for the title
+    c_logo, c_title = st.columns([1, 3])
+    with c_logo:
+        st.image(logo_url, use_container_width=True)
     
     st.markdown("<h1 class='modern-h1'>SKD EMAIL SCHEDULE APP</h1>", unsafe_allow_html=True)
     st.markdown("""
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 25px;">
             <div class="live-dot"></div>
-            <span style="color:#4ADE80; font-size:0.75rem; font-weight:800; text-transform: uppercase;">System Online</span>
+            <span style="color:#4ADE80; font-size:0.75rem; font-weight:800; text-transform: uppercase;">System Monitoring Active</span>
         </div>
     """, unsafe_allow_html=True)
 
