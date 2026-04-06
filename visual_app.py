@@ -61,7 +61,7 @@ st.set_page_config(page_title="SKD Reminder Center", layout="wide")
 st.markdown("""
     <style>
     .stApp { background-color: #F8F9FA; }
-    .header-box { text-align: left; padding: 15 (15px); background: white; border-bottom: 3px solid #D4AF37; }
+    .header-box { text-align: left; padding: 15px; background: white; border-bottom: 3px solid #D4AF37; }
     .glass-stats {
         background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
         border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 15px; padding: 15px;
@@ -70,7 +70,6 @@ st.markdown("""
     .card { background: white; padding: 20px; border-radius: 12px; border-left: 6px solid #8B0000; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 15px; }
     .tag-active { background: #FFF5F5; color: #8B0000; padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 0.7rem; border: 1px solid #8B0000; }
     .tag-sent { background: #F0FFF4; color: #22543D; padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 0.7rem; border: 1px solid #22543D; }
-    .footer { text-align: center; color: #94A3B8; font-size: 0.8rem; margin-top: 30px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -82,7 +81,7 @@ if os.path.exists("logo.jpeg"):
 if "page" not in st.session_state: st.session_state.page = "dashboard"
 df = pd.read_csv(CSV_FILE)
 
-# --- DASHBOARD ---
+# --- PAGE: DASHBOARD ---
 if st.session_state.page == "dashboard":
     a_count = len(df[df['Status'] == 'Active'])
     s_count = len(df[df['Status'] == 'Sent'])
@@ -109,14 +108,14 @@ if st.session_state.page == "dashboard":
                 st.markdown('<div class="card">', unsafe_allow_html=True)
                 col_tx, col_dt, col_bt = st.columns([3, 2, 1.2])
                 with col_tx:
-                    tag_style = "tag-active" if row['Status'] == 'Active' else "tag-sent"
-                    st.markdown(f'<span class="{tag_style}">{row["Status"].upper()}</span> **{row["Task"]}**', unsafe_allow_html=True)
+                    status = str(row['Status'])
+                    tag_style = "tag-active" if status == 'Active' else "tag-sent"
+                    st.markdown(f'<span class="{tag_style}">{status.upper()}</span> **{row["Task"]}**', unsafe_allow_html=True)
                     st.caption(f"To: {row['Recipient']}")
                 with col_dt:
                     st.write(f"📅 {row['Deadline']}")
                     st.caption(f"⏰ {row['Time']} | {row['Recurrence']}")
                 with col_bt:
-                    # BUTTONS: View/Edit and Delete
                     edit_col, del_col = st.columns(2)
                     if edit_col.button("📝 Edit", key=f"edit_{i}"):
                         st.session_state.edit_index = i
@@ -127,27 +126,27 @@ if st.session_state.page == "dashboard":
                         st.rerun()
                 st.markdown('</div>', unsafe_allow_html=True)
 
-# --- CREATE PAGE ---
+# --- PAGE: CREATE ---
 elif st.session_state.page == "create":
     if st.button("← Back"):
         st.session_state.page = "dashboard"
         st.rerun()
     with st.form("add_new"):
-        st.write("### Schedule New Email")
         t = st.text_input("Task Name")
         e = st.text_input("Recipient Email")
         c1, c2, c3 = st.columns(3)
         d = c1.date_input("Date", datetime.now(UAE_TZ))
-        tm = st.text_input("Time (02:30 PM)", value=datetime.now(UAE_TZ).strftime("%I:%M %p"))
+        tm = st.text_input("Time (e.g. 02:30 PM)", value=datetime.now(UAE_TZ).strftime("%I:%M %p"))
         r = c3.selectbox("Repeat", ["None", "Weekly", "Monthly"])
-        if st.form_submit_button("SAVE"):
-            new_row = pd.DataFrame([[t, e, str(d), tm, 0, 'Active', r]], columns=COLUMNS)
-            df = pd.concat([df, new_row], ignore_index=True)
-            df.to_csv(CSV_FILE, index=False)
-            st.session_state.page = "dashboard"
-            st.rerun()
+        if st.form_submit_button("SAVE SCHEDULE", use_container_width=True):
+            if t and e:
+                new_row = pd.DataFrame([[t, e, str(d), tm, 0, 'Active', r]], columns=COLUMNS)
+                df = pd.concat([df, new_row], ignore_index=True)
+                df.to_csv(CSV_FILE, index=False)
+                st.session_state.page = "dashboard"
+                st.rerun()
 
-# --- EDIT PAGE ---
+# --- PAGE: EDIT ---
 elif st.session_state.page == "edit":
     idx = st.session_state.edit_index
     row = df.iloc[idx]
@@ -161,12 +160,22 @@ elif st.session_state.page == "edit":
         new_t = st.text_input("Task Name", value=row['Task'])
         new_e = st.text_input("Recipient Email", value=row['Recipient'])
         c1, c2, c3 = st.columns(3)
-        # Convert string date back to datetime object for the picker
-        current_date = datetime.strptime(row['Deadline'], '%Y-%m-%d')
+        
+        current_date = datetime.strptime(str(row['Deadline']), '%Y-%m-%d')
         new_d = c1.date_input("Date", value=current_date)
         new_tm = c2.text_input("Time", value=row['Time'])
-        new_r = c3.selectbox("Repeat", ["None", "Weekly", "Monthly"], index=["None", "Weekly", "Monthly"].index(row['Recurrence']))
-        new_s = st.selectbox("Status", ["Active", "Sent"], index=["Active", "Sent"].index(row['Status']))
+        
+        # FIXED: Safe check for recurrence dropdown
+        rec_list = ["None", "Weekly", "Monthly"]
+        rec_val = str(row['Recurrence'])
+        rec_index = rec_list.index(rec_val) if rec_val in rec_list else 0
+        new_r = c3.selectbox("Repeat", rec_list, index=rec_index)
+        
+        # FIXED: Safe check for status dropdown
+        stat_list = ["Active", "Sent"]
+        stat_val = str(row['Status'])
+        stat_index = stat_list.index(stat_val) if stat_val in stat_list else 0
+        new_s = st.selectbox("Status", stat_list, index=stat_index)
         
         if st.form_submit_button("UPDATE CHANGES"):
             df.at[idx, 'Task'] = new_t
@@ -178,5 +187,3 @@ elif st.session_state.page == "edit":
             df.to_csv(CSV_FILE, index=False)
             st.session_state.page = "dashboard"
             st.rerun()
-
-st.markdown('<div class="footer">SKD Real Estate • Managed by Yared Anbesa</div>', unsafe_allow_html=True)
