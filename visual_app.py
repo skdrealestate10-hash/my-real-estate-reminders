@@ -4,193 +4,139 @@ from datetime import datetime, timedelta
 import smtplib
 from email.mime.text import MIMEText
 import os
-import time
-import threading
 
 # --- 1. CONFIGURATION ---
-# Using your provided credentials directly for reliability
 GMAIL_USER = 'skdrealestate10@gmail.com'
-GMAIL_PASSWORD = 'jukv rsyr breg irzy' 
+GMAIL_PASSWORD = 'jukv rsyr breg irzy'
 CSV_FILE = 'list.csv'
 COLUMNS = ['Task', 'Recipient', 'Deadline', 'Time', 'DaysBefore', 'Status', 'Recurrence']
 
-# --- 2. BACKGROUND ENGINE ---
-def auto_send_engine():
-    """Checks for due emails every 60 seconds in the background."""
-    while True:
-        try:
-            if os.path.exists(CSV_FILE):
-                df_bg = pd.read_csv(CSV_FILE)
-                now = datetime.now()
-                today_date = now.date()
-                current_time_str = now.strftime("%H:%M")
-                changed = False
+# --- 2. THE GUARANTEED ENGINE ---
+def run_email_engine():
+    """This function runs every time the page is loaded or pinged"""
+    if not os.path.exists(CSV_FILE):
+        pd.DataFrame(columns=COLUMNS).to_csv(CSV_FILE, index=False)
+        return
 
-                for index, row in df_bg.iterrows():
-                    if row['Status'] == 'Active':
-                        deadline = datetime.strptime(str(row['Deadline']), '%Y-%m-%d').date()
-                        send_on_date = deadline - timedelta(days=int(row['DaysBefore']))
-                        
-                        if (today_date > send_on_date) or (today_date == send_on_date and current_time_str >= str(row['Time'])):
-                            msg = MIMEText(f"Hello,\n\nReminder for '{row['Task']}' scheduled for {row['Deadline']} at {row['Time']}.\n\nSent via SKD Automation.")
-                            msg['Subject'] = f"🔔 SKD REMINDER: {row['Task']}"
-                            msg['From'] = GMAIL_USER
-                            msg['To'] = row['Recipient']
-                            
-                            try:
-                                with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-                                    server.login(GMAIL_USER, GMAIL_PASSWORD)
-                                    server.send_message(msg)
-                                
-                                if row['Recurrence'] == 'Weekly':
-                                    df_bg.at[index, 'Deadline'] = str(deadline + timedelta(weeks=1))
-                                elif row['Recurrence'] == 'Monthly':
-                                    df_bg.at[index, 'Deadline'] = str(deadline + timedelta(days=30))
-                                else:
-                                    df_bg.at[index, 'Status'] = 'Sent'
-                                changed = True
-                            except: pass
+    df_bg = pd.read_csv(CSV_FILE)
+    now = datetime.now()
+    today_date = now.date()
+    current_time_str = now.strftime("%H:%M")
+    changed = False
 
-                if changed:
-                    df_bg.to_csv(CSV_FILE, index=False)
-        except: pass
-        time.sleep(60)
+    for index, row in df_bg.iterrows():
+        if str(row['Status']) == 'Active':
+            deadline = datetime.strptime(str(row['Deadline']), '%Y-%m-%d').date()
+            send_on_date = deadline - timedelta(days=int(row['DaysBefore']))
+            
+            # TRIGGER: If date is today/past AND time has reached
+            if (today_date > send_on_date) or (today_date == send_on_date and current_time_str >= str(row['Time'])):
+                recipients = [e.strip() for e in str(row['Recipient']).split(',')]
+                msg = MIMEText(f"Reminder: {row['Task']}\nDue: {row['Deadline']}\n\nSKD Real Estate Automation")
+                msg['Subject'] = f"🔔 SKD REMINDER: {row['Task']}"
+                msg['From'] = GMAIL_USER
+                msg['To'] = ", ".join(recipients)
+                
+                try:
+                    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+                        server.login(GMAIL_USER, GMAIL_PASSWORD)
+                        server.send_message(msg)
+                    
+                    # Handle Recurrence
+                    if row['Recurrence'] == 'Weekly':
+                        df_bg.at[index, 'Deadline'] = str(deadline + timedelta(weeks=1))
+                    elif row['Recurrence'] == 'Monthly':
+                        df_bg.at[index, 'Deadline'] = str(deadline + timedelta(days=30))
+                    else:
+                        df_bg.at[index, 'Status'] = 'Sent'
+                    changed = True
+                except: pass
 
-# Start Engine Thread
-if "engine_started" not in st.session_state:
-    threading.Thread(target=auto_send_engine, daemon=True).start()
-    st.session_state.engine_started = True
+    if changed:
+        df_bg.to_csv(CSV_FILE, index=False)
 
-# --- 3. UI SETUP & STYLING ---
+# RUN ENGINE IMMEDIATELY ON EVERY LOAD
+run_email_engine()
+
+# --- 3. UI & LUXURY STYLING ---
 st.set_page_config(page_title="SKD | Luxury Reminders", layout="wide")
 
-# Professional Styling
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;600&display=swap');
-    
-    /* Main Background */
     .stApp { background-color: #FCFCFC; }
-    
-    /* Top Header Styling */
     .header-box { text-align: center; padding: 20px; background: white; border-bottom: 2px solid #D4AF37; margin-bottom: 30px; }
-    .header-title { font-family: 'Playfair Display', serif; color: #8B0000; font-size: 2.5rem; margin-bottom: 0; }
-    
-    /* Cards & Containers */
     .reminder-card {
-        background: white; padding: 25px; border-radius: 12px;
-        border-left: 5px solid #8B0000; 
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-        margin-bottom: 15px; transition: 0.3s;
+        background: white; padding: 20px; border-radius: 12px;
+        border-left: 5px solid #8B0000; box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        margin-bottom: 15px;
     }
-    .reminder-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
-    
-    /* Buttons */
-    .stButton>button { border-radius: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
-    
-    /* Status Tags */
-    .tag-active { background: #FFF5F5; color: #8B0000; padding: 5px 15px; border-radius: 20px; font-weight: 700; font-size: 0.8rem; border: 1px solid #8B0000; }
-    .tag-sent { background: #F0FFF4; color: #22543D; padding: 5px 15px; border-radius: 20px; font-weight: 700; font-size: 0.8rem; border: 1px solid #22543D; }
-    
-    .footer { text-align: center; padding: 40px; color: #A0AEC0; font-size: 0.85rem; border-top: 1px solid #EEE; margin-top: 50px; }
+    .tag-active { background: #FFF5F5; color: #8B0000; padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 0.7rem; border: 1px solid #8B0000; }
+    .tag-sent { background: #F0FFF4; color: #22543D; padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 0.7rem; border: 1px solid #22543D; }
+    .footer { text-align: center; padding: 30px; color: #A0AEC0; font-size: 0.8rem; }
     </style>
     """, unsafe_allow_html=True)
 
 # Navigation
 if "page" not in st.session_state: st.session_state.page = "dashboard"
-def navigate_to(page_name): st.session_state.page = page_name
 
-# Data Init
-if not os.path.exists(CSV_FILE):
-    pd.DataFrame(columns=COLUMNS).to_csv(CSV_FILE, index=False)
-df = pd.read_csv(CSV_FILE)
-
-# --- BRANDING HEADER ---
+# Branding Header
 st.markdown('<div class="header-box">', unsafe_allow_html=True)
-if os.path.exists("logo.jpeg"):
-    st.image("logo.jpeg", width=250)
-else:
-    st.markdown('<h1 class="header-title">SKD REAL ESTATE</h1>', unsafe_allow_html=True)
+if os.path.exists("logo.jpeg"): st.image("logo.jpeg", width=220)
 st.markdown('</div>', unsafe_allow_html=True)
 
-# --- PAGE 1: DASHBOARD ---
-if st.session_state.page == "dashboard":
-    # Top Action Bar
-    c_title, c_btn = st.columns([3, 1])
-    with c_title:
-        st.subheader("Your Scheduled Communications")
-        st.caption("Background Monitoring Active 🟢")
-    with c_btn:
-        st.button("➕ Create New Reminder", on_click=navigate_to, args=("create",), type="primary", use_container_width=True)
+df = pd.read_csv(CSV_FILE)
 
-    st.write("")
-    
+# --- DASHBOARD ---
+if st.session_state.page == "dashboard":
+    c1, c2 = st.columns([3, 1])
+    c1.subheader("SKD Real Estate | Active Reminders")
+    if c2.button("➕ New Email", type="primary", use_container_width=True):
+        st.session_state.page = "create"
+        st.rerun()
+
     if len(df) == 0:
-        st.info("No tasks currently scheduled. Add your first reminder to get started.")
+        st.info("No reminders scheduled.")
     else:
-        # Show items in reverse order (newest first)
-        for index, row in df[::-1].iterrows():
+        for i, row in df[::-1].iterrows():
             with st.container():
-                st.markdown(f'<div class="reminder-card">', unsafe_allow_html=True)
-                col_status, col_main, col_details, col_del = st.columns([0.8, 3, 2, 0.5])
-                
-                with col_status:
-                    if row['Status'] == 'Active':
-                        st.markdown('<span class="tag-active">ACTIVE</span>', unsafe_allow_html=True)
-                    else:
-                        st.markdown('<span class="tag-sent">SENT ✅</span>', unsafe_allow_html=True)
-                
-                with col_main:
-                    st.markdown(f"<h3 style='margin:0; font-size:1.2rem;'>{row['Task']}</h3>", unsafe_allow_html=True)
-                    st.markdown(f"<span style='color:#718096;'>To: {row['Recipient']}</span>", unsafe_allow_html=True)
-                
-                with col_details:
+                st.markdown('<div class="reminder-card">', unsafe_allow_html=True)
+                col_st, col_tx, col_dt, col_dl = st.columns([0.8, 3, 2, 0.5])
+                with col_st:
+                    status_class = "tag-active" if row['Status'] == 'Active' else "tag-sent"
+                    st.markdown(f'<span class="{status_class}">{row["Status"]}</span>', unsafe_allow_html=True)
+                with col_tx:
+                    st.markdown(f"**{row['Task']}**")
+                    st.caption(f"To: {row['Recipient']}")
+                with col_dt:
                     st.markdown(f"📅 **{row['Deadline']}**")
-                    st.markdown(f"<span style='font-size:0.9rem;'>⏰ {row['Time']} | {row['Recurrence']}</span>", unsafe_allow_html=True)
-                
-                with col_del:
-                    if st.button("🗑️", key=f"del_{index}"):
-                        df.drop(index).to_csv(CSV_FILE, index=False)
+                    st.caption(f"⏰ {row['Time']} | {row['Recurrence']}")
+                with col_dl:
+                    if st.button("🗑️", key=f"del_{i}"):
+                        df.drop(i).to_csv(CSV_FILE, index=False)
                         st.rerun()
-                
                 st.markdown('</div>', unsafe_allow_html=True)
 
-# --- PAGE 2: CREATE ---
+# --- CREATE ---
 elif st.session_state.page == "create":
-    st.button("← Back to Dashboard", on_click=navigate_to, args=("dashboard",))
+    if st.button("← Back"):
+        st.session_state.page = "dashboard"
+        st.rerun()
     
-    st.markdown("<h2 style='color:#8B0000; text-align:center;'>Schedule New Reminder</h2>", unsafe_allow_html=True)
-    
-    with st.container():
-        # Center the form
-        _, form_col, _ = st.columns([1, 2, 1])
-        with form_col:
-            with st.form("new_schedule_form", clear_on_submit=True):
-                task = st.text_input("Task/Project Name (e.g., Payment Follow-up)")
-                emails = st.text_input("Recipient Email(s)", help="Separate multiple with commas")
-                
-                c1, c2, c3 = st.columns(3)
-                with c1: date_val = st.date_input("Deadline", datetime.now() + timedelta(days=1))
-                with c2: time_val = st.text_input("Time (HH:MM)", value="09:00")
-                with c3: repeat_val = st.selectbox("Frequency", ["None", "Weekly", "Monthly"])
-                
-                days_b = st.number_input("Days Before Deadline to Send", 0, 30, 0)
-                
-                st.write("")
-                if st.form_submit_button("CONFIRM SCHEDULE", use_container_width=True):
-                    if task and emails:
-                        new_entry = pd.DataFrame([[task, emails, str(date_val), time_val, int(days_b), 'Active', repeat_val]], columns=COLUMNS)
-                        df = pd.concat([df, new_entry], ignore_index=True)
-                        df.to_csv(CSV_FILE, index=False)
-                        navigate_to("dashboard")
-                        st.rerun()
-                    else:
-                        st.warning("Please fill in the Task and Email fields.")
+    with st.form("new_form"):
+        st.markdown("### Schedule New Communication")
+        t = st.text_input("Subject")
+        e = st.text_input("Recipient(s)")
+        c1, c2, c3 = st.columns(3)
+        d = c1.date_input("Date", datetime.now())
+        tm = c2.text_input("Time (HH:MM)", "09:00")
+        r = c3.selectbox("Repeat", ["None", "Weekly", "Monthly"])
+        db = st.number_input("Days Before", 0, 30, 0)
+        
+        if st.form_submit_button("SAVE SCHEDULE", use_container_width=True):
+            new_row = pd.DataFrame([[t, e, str(d), tm, int(db), 'Active', r]], columns=COLUMNS)
+            df = pd.concat([df, new_row], ignore_index=True)
+            df.to_csv(CSV_FILE, index=False)
+            st.session_state.page = "dashboard"
+            st.rerun()
 
-# --- FOOTER ---
-st.markdown(f"""
-    <div class="footer">
-        © {datetime.now().year} SKD Real Estate • Digital Marketing Division<br>
-        Built by Yared Anbesa
-    </div>
-    """, unsafe_allow_html=True)
+st.markdown(f'<div class="footer">SKD Real Estate • Managed by Yared</div>', unsafe_allow_html=True)
