@@ -7,13 +7,16 @@ import os
 import pytz
 import time
 from streamlit_autorefresh import st_autorefresh
+from github import Github  # <--- NEW: Required for GitHub Memory
 
 # --- 1. CONFIG & SYSTEM ---
 try:
     GMAIL_USER = st.secrets["GMAIL_USER"]
     GMAIL_PASSWORD = st.secrets["GMAIL_PASSWORD"]
-except:
-    st.error("Missing Secrets!")
+    GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"] # <--- NEW: Add this to Streamlit Secrets
+    REPO_NAME = "YaredAnbesa/my-real-estate-reminders" # Ensure this matches your repo name
+except Exception as e:
+    st.error(f"Missing Secrets or Configuration! {e}")
     st.stop()
 
 # --- 2. HEARTBEAT ---
@@ -23,8 +26,41 @@ CSV_FILE = 'list.csv'
 COLUMNS = ['Task', 'Recipient', 'Deadline', 'Time', 'Status', 'Recurrence', 'AddedAt']
 UAE_TZ = pytz.timezone('Asia/Dubai')
 
-# --- 3. CSV REPAIR ---
+# --- 3. GITHUB MEMORY SYNC (THE NEW ADDITION) ---
+def sync_from_github():
+    """Pulls the list.csv from GitHub memory into the local app."""
+    try:
+        g = Github(GITHUB_TOKEN)
+        repo = g.get_repo(REPO_NAME)
+        file_content = repo.get_contents(CSV_FILE)
+        # Download and save locally for the engine to use
+        with open(CSV_FILE, "wb") as f:
+            f.write(file_content.decoded_content)
+        return True
+    except:
+        return False
+
+def push_to_github():
+    """Pushes the local list.csv updates back to GitHub for safety."""
+    try:
+        g = Github(GITHUB_TOKEN)
+        repo = g.get_repo(REPO_NAME)
+        with open(CSV_FILE, "r") as f:
+            content = f.read()
+        
+        contents = repo.get_contents(CSV_FILE)
+        repo.update_file(contents.path, "SKD System: Update Memory", content, contents.sha)
+        return True
+    except Exception as e:
+        st.error(f"GitHub Sync Failed: {e}")
+        return False
+
+# --- 4. CSV REPAIR (Modified to use GitHub) ---
 def load_and_fix_csv():
+    # Attempt to sync from GitHub first if local doesn't exist or app just started
+    if not os.path.exists(CSV_FILE):
+        sync_from_github()
+        
     if not os.path.exists(CSV_FILE):
         pd.DataFrame(columns=COLUMNS).to_csv(CSV_FILE, index=False)
     try:
@@ -37,20 +73,18 @@ def load_and_fix_csv():
     except:
         return pd.DataFrame(columns=COLUMNS)
 
-# --- 4. LUXURY STYLING ---
+# --- 5. LUXURY STYLING ---
 st.set_page_config(page_title="SKD | Email Schedule App", layout="wide", page_icon="📧")
 
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap');
     .stApp { background-color: #0F172A; color: #FFFFFF; font-family: 'Inter', sans-serif; }
-    
     .modern-h1 { 
         font-size: 2.8rem; font-weight: 800; letter-spacing: -1px; margin: 0;
         background: linear-gradient(90deg, #FFFFFF, #D4AF37);
         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }
-    
     .reminder-card {
         background: #1E293B; border-radius: 16px; padding: 25px;
         margin-bottom: 20px; border-left: 8px solid #D4AF37;
@@ -63,14 +97,12 @@ st.markdown("""
     .time-display { font-size: 2.5rem; font-weight: 800; color: #D4AF37 !important; line-height: 1; }
     .gold-text { color: #D4AF37 !important; font-weight: 600; }
     .sub-text { color: #94A3B8 !important; font-size: 0.8rem; letter-spacing: 1px; font-weight: 700; }
-    
     .live-dot {
         height: 10px; width: 10px; background-color: #4ADE80;
         border-radius: 50%; display: inline-block; margin-right: 8px;
         animation: blink 1.5s infinite;
     }
     @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }
-
     .footer {
         text-align: center; padding: 40px; color: #64748B !important;
         font-size: 0.85rem; border-top: 1px solid #1E293B; margin-top: 50px;
@@ -78,7 +110,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 5. ENGINE ---
+# --- 6. ENGINE (Untouched Logic) ---
 def run_automation_engine():
     df_logic = load_and_fix_csv()
     if df_logic.empty: return
@@ -111,37 +143,37 @@ def run_automation_engine():
                     df_logic.at[index, 'Status'] = 'Sent'
                     changed = True
             except: continue
-    if changed: df_logic.to_csv(CSV_FILE, index=False)
+    if changed: 
+        df_logic.to_csv(CSV_FILE, index=False)
+        push_to_github() # <--- NEW: Sync back to memory
 
-# --- 6. DASHBOARD UI ---
+# --- 7. DASHBOARD UI ---
 df = load_and_fix_csv()
 
 if "page" not in st.session_state: st.session_state.page = "dashboard"
 
 if st.session_state.page == "dashboard":
-    # --- BRAND HEADER ---
-    # Attempting to load locally first (most reliable)
-    local_logo = "logo.jpeg"
-    remote_logo = "https://raw.githubusercontent.com/YaredAnbesa/my-real-estate-reminders/main/logo.jpeg"
-    
-    logo_to_use = local_logo if os.path.exists(local_logo) else remote_logo
-
-    # Placing logo in a wide column to maintain rectangular shape
     col_l, col_r = st.columns([1.5, 2.5])
     with col_l:
-        st.image(logo_to_use, width=350)
+        st.image("https://raw.githubusercontent.com/YaredAnbesa/my-real-estate-reminders/main/logo.jpeg", width=350)
     
     st.markdown("<h1 class='modern-h1'>SKD EMAIL SCHEDULE APP</h1>", unsafe_allow_html=True)
+    
+    # Manual Sync Button for Safety
+    if st.button("🔄 REFRESH FROM GITHUB MEMORY"):
+        if sync_from_github():
+            st.success("Memory Restored!")
+            st.rerun()
+
     st.markdown("""
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 25px; margin-top: 10px;">
             <div class="live-dot"></div>
-            <span style="color:#4ADE80; font-size:0.75rem; font-weight:800; text-transform: uppercase;">System Online</span>
+            <span style="color:#4ADE80; font-size:0.75rem; font-weight:800; text-transform: uppercase;">System Online | Permanent Memory Active</span>
         </div>
     """, unsafe_allow_html=True)
 
     st.divider()
 
-    # METRICS
     m1, m2, m3 = st.columns(3)
     with m1:
         st.markdown(f"<div class='metric-box'><div class='sub-text'>ACTIVE</div><div class='time-display'>{len(df[df['Status'] == 'Active'])}</div></div>", unsafe_allow_html=True)
@@ -171,7 +203,9 @@ if st.session_state.page == "dashboard":
             </div>
             """, unsafe_allow_html=True)
             if st.button(f"🗑️ Delete #{i}", key=f"del_{i}", use_container_width=True):
-                df.drop(i).to_csv(CSV_FILE, index=False)
+                df_temp = df.drop(i)
+                df_temp.to_csv(CSV_FILE, index=False)
+                push_to_github() # <--- NEW: Delete from memory too
                 st.rerun()
 
 elif st.session_state.page == "create":
@@ -191,7 +225,9 @@ elif st.session_state.page == "create":
         if st.form_submit_button("ACTIVATE"):
             if task and email:
                 new = pd.DataFrame([[task, email, str(date_sel), time_sel, 'Active', recur, time.time()]], columns=COLUMNS)
-                pd.concat([load_and_fix_csv(), new], ignore_index=True).to_csv(CSV_FILE, index=False)
+                updated_df = pd.concat([load_and_fix_csv(), new], ignore_index=True)
+                updated_df.to_csv(CSV_FILE, index=False)
+                push_to_github() # <--- NEW: Save to memory immediately
                 st.session_state.page = "dashboard"
                 st.rerun()
 
