@@ -7,14 +7,15 @@ import os
 import pytz
 import time
 from streamlit_autorefresh import st_autorefresh
-from github import Github  # <--- NEW: Required for GitHub Memory
+from github import Github 
 
 # --- 1. CONFIG & SYSTEM ---
 try:
     GMAIL_USER = st.secrets["GMAIL_USER"]
     GMAIL_PASSWORD = st.secrets["GMAIL_PASSWORD"]
-    GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"] # <--- NEW: Add this to Streamlit Secrets
-    REPO_NAME = "YaredAnbesa/my-real-estate-reminders" # Ensure this matches your repo name
+    GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"] 
+    # Updated to your actual GitHub username
+    REPO_NAME = "skdrealestate10-hash/my-real-estate-reminders" 
 except Exception as e:
     st.error(f"Missing Secrets or Configuration! {e}")
     st.stop()
@@ -26,14 +27,13 @@ CSV_FILE = 'list.csv'
 COLUMNS = ['Task', 'Recipient', 'Deadline', 'Time', 'Status', 'Recurrence', 'AddedAt']
 UAE_TZ = pytz.timezone('Asia/Dubai')
 
-# --- 3. GITHUB MEMORY SYNC (THE NEW ADDITION) ---
+# --- 3. GITHUB MEMORY SYNC ---
 def sync_from_github():
     """Pulls the list.csv from GitHub memory into the local app."""
     try:
         g = Github(GITHUB_TOKEN)
         repo = g.get_repo(REPO_NAME)
         file_content = repo.get_contents(CSV_FILE)
-        # Download and save locally for the engine to use
         with open(CSV_FILE, "wb") as f:
             f.write(file_content.decoded_content)
         return True
@@ -55,9 +55,8 @@ def push_to_github():
         st.error(f"GitHub Sync Failed: {e}")
         return False
 
-# --- 4. CSV REPAIR (Modified to use GitHub) ---
+# --- 4. CSV REPAIR ---
 def load_and_fix_csv():
-    # Attempt to sync from GitHub first if local doesn't exist or app just started
     if not os.path.exists(CSV_FILE):
         sync_from_github()
         
@@ -110,7 +109,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 6. ENGINE (Untouched Logic) ---
+# --- 6. ENGINE ---
 def run_automation_engine():
     df_logic = load_and_fix_csv()
     if df_logic.empty: return
@@ -145,7 +144,7 @@ def run_automation_engine():
             except: continue
     if changed: 
         df_logic.to_csv(CSV_FILE, index=False)
-        push_to_github() # <--- NEW: Sync back to memory
+        push_to_github()
 
 # --- 7. DASHBOARD UI ---
 df = load_and_fix_csv()
@@ -153,13 +152,15 @@ df = load_and_fix_csv()
 if "page" not in st.session_state: st.session_state.page = "dashboard"
 
 if st.session_state.page == "dashboard":
+    # --- BRAND HEADER (Corrected Username) ---
+    logo_url = "https://raw.githubusercontent.com/skdrealestate10-hash/my-real-estate-reminders/main/logo.jpeg"
+
     col_l, col_r = st.columns([1.5, 2.5])
     with col_l:
-        st.image("https://raw.githubusercontent.com/YaredAnbesa/my-real-estate-reminders/main/logo.jpeg", width=350)
+        st.image(logo_url, width=350)
     
     st.markdown("<h1 class='modern-h1'>SKD EMAIL SCHEDULE APP</h1>", unsafe_allow_html=True)
     
-    # Manual Sync Button for Safety
     if st.button("🔄 REFRESH FROM GITHUB MEMORY"):
         if sync_from_github():
             st.success("Memory Restored!")
@@ -205,7 +206,7 @@ if st.session_state.page == "dashboard":
             if st.button(f"🗑️ Delete #{i}", key=f"del_{i}", use_container_width=True):
                 df_temp = df.drop(i)
                 df_temp.to_csv(CSV_FILE, index=False)
-                push_to_github() # <--- NEW: Delete from memory too
+                push_to_github()
                 st.rerun()
 
 elif st.session_state.page == "create":
@@ -227,7 +228,7 @@ elif st.session_state.page == "create":
                 new = pd.DataFrame([[task, email, str(date_sel), time_sel, 'Active', recur, time.time()]], columns=COLUMNS)
                 updated_df = pd.concat([load_and_fix_csv(), new], ignore_index=True)
                 updated_df.to_csv(CSV_FILE, index=False)
-                push_to_github() # <--- NEW: Save to memory immediately
+                push_to_github() 
                 st.session_state.page = "dashboard"
                 st.rerun()
 
